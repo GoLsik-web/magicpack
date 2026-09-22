@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magic Pack</title>
+<meta name="description" content="Русский сервер выживания с магией на Minecraft 1.21.1. Мёртвые поумнели, города в руинах, выжившие держатся за стенами.">
+<meta property="og:title" content="Magic Pack — сервер выживания 1.21.1">
+<meta property="og:description" content="Мёртвые поумнели. Города в руинах. Выжившие держатся за стенами.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2314110f'/><path d='M9 23V9h3l4 7 4-7h3v14h-3v-8l-4 7-4-7v8z' fill='%23c98b3a'/></svg>">
+<style>
+:root{
+  --ink:#14110f;
+  --ink-2:#1c1815;
+  --ink-3:#241f1a;
+  --line:#3a322a;
+  --paper:#e9e1d3;
+  --paper-dim:#b9ae9b;
+  --paper-low:#8b8172;
+  --amber:#c98b3a;
+  --rune:#8a6bd8;
+  --blood:#a5402f;
+  --maxw:1180px;
+}
+:root{ --amber-hi:#e8ad5c; }
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--ink); color:var(--paper);
+  font-family:"Golos Text",system-ui,sans-serif; font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:100; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+img{max-width:100%}
+a{color:inherit}
+h1,h2,h3{font-family:Oswald,"Golos Text",sans-serif; font-weight:500; letter-spacing:.01em; margin:0}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+/* ------------------------------------------------ шапка */
+.top{
+  position:sticky; top:0; z-index:50; background:rgba(20,17,15,.92);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+}
+.top .wrap{display:flex; align-items:center; gap:28px; height:62px}
+.brand{font-family:Oswald,sans-serif; font-size:21px; letter-spacing:.14em; text-transform:uppercase; text-decoration:none}
+.brand b{color:var(--amber); font-weight:500}
+.nav{display:flex; gap:22px; margin-left:auto; font-size:14px; letter-spacing:.06em; text-transform:uppercase}
+.nav a{color:var(--paper-dim); text-decoration:none; padding:4px 0; border-bottom:1px solid transparent}
+.nav a:hover{color:var(--paper); border-bottom-color:var(--amber)}
+.burger{display:none}
+
+/* ------------------------------------------------ герой */
+.hero{position:relative; overflow:hidden; border-bottom:1px solid var(--line)}
+.hero::after{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(900px 420px at 78% -10%, rgba(138,107,216,.16), transparent 70%),
+    radial-gradient(700px 500px at 8% 110%, rgba(201,139,58,.12), transparent 70%);
+  pointer-events:none;
+}
+.hero .wrap{position:relative; z-index:1; padding:74px 24px 64px; display:grid; grid-template-columns:1.25fr .85fr; gap:54px; align-items:start}
+.eyebrow{font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--amber); margin-bottom:18px}
+.hero h1{font-size:clamp(44px,7vw,82px); line-height:.94; letter-spacing:-.01em; text-transform:uppercase}
+.hero h1 span{display:block; color:var(--paper-low)}
+.lede{margin:26px 0 0; font-size:19px; max-width:34em; color:#cfc6b6}
+.lede b{color:var(--paper); font-weight:500}
+
+/* карточка адреса */
+.card{border:1px solid var(--line); background:linear-gradient(180deg,var(--ink-2),var(--ink)); padding:22px}
+.card .label{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-low)}
+.ipline{display:flex; align-items:center; gap:10px; margin-top:8px}
+.ip{font-family:"JetBrains Mono",monospace; font-size:clamp(18px,2.4vw,25px); color:var(--amber-hi); word-break:break-all}
+.copy{
+  border:1px solid var(--line); background:transparent; color:var(--paper-dim);
+  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  padding:7px 11px; cursor:pointer; white-space:nowrap;
+}
+.copy:hover{border-color:var(--amber); color:var(--amber-hi)}
+.copy.done{border-color:#6f8a4a; color:#a8c57a}
+.meta{margin-top:18px; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:7px; font-size:14px}
+.meta div{display:flex; justify-content:space-between; gap:14px; color:var(--paper-low)}
+.meta b{color:var(--paper-dim); font-weight:500; font-family:"JetBrains Mono",monospace; font-size:13px; text-align:right}
+.cta{display:flex; gap:12px; margin-top:20px; flex-wrap:wrap}
+.btn{
+  display:inline-block; text-decoration:none; padding:13px 20px; font-family:Oswald,sans-serif;
+  font-size:15px; letter-spacing:.1em; text-transform:uppercase; border:1px solid var(--amber);
+  color:var(--ink); background:var(--amber);
+}
+.btn:hover{background:var(--amber-hi); border-color:var(--amber-hi)}
+.btn.ghost{background:transparent; color:var(--paper); border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--paper-dim); background:rgba(233,225,211,.05)}
+
+/* ------------------------------------------------ секции */
+section{border-bottom:1px solid var(--line)}
+section > .wrap{padding:76px 24px}
+.head{display:flex; align-items:baseline; gap:18px; margin-bottom:34px}
+.num{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--amber); letter-spacing:.2em}
+.head h2{font-size:clamp(28px,4vw,42px); text-transform:uppercase; letter-spacing:.01em}
+.head .rule{flex:1; height:1px; background:var(--line); transform:translateY(-6px)}
+
+.prose{max-width:62ch; font-size:18px; color:#cfc6b6}
+.prose p{margin:0 0 18px}
+.prose b{color:var(--paper); font-weight:500}
+
+/* мир — двухколоночный разворот */
+.spread{display:grid; grid-template-columns:1.1fr .9fr; gap:52px; align-items:start}
+.pull{
+  border-left:2px solid var(--amber); padding:4px 0 4px 20px; margin:6px 0 0;
+  font-family:Oswald,sans-serif; font-size:23px; line-height:1.34; text-transform:none; color:var(--paper);
+}
+.pull small{display:block; margin-top:10px; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--paper-low)}
+
+/* механики — неравные блоки */
+.feats{display:grid; grid-template-columns:repeat(12,1fr); gap:1px; background:var(--line); border:1px solid var(--line)}
+.feat{background:var(--ink); padding:28px 26px 30px}
+.feat:nth-child(1){grid-column:span 7}
+.feat:nth-child(2){grid-column:span 5}
+.feat:nth-child(3){grid-column:span 4}
+.feat:nth-child(4){grid-column:span 4}
+.feat:nth-child(5){grid-column:span 4}
+.feat:nth-child(6){grid-column:span 5}
+.feat:nth-child(7){grid-column:span 7}
+.feat h3{font-size:20px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px}
+.feat .tag{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--rune); display:block; margin-bottom:12px}
+.feat p{margin:0; color:var(--paper-dim); font-size:16px}
+
+/* шаги */
+.steps{counter-reset:s; display:grid; gap:1px; background:var(--line); border:1px solid var(--line)}
+.step{background:var(--ink); padding:26px; display:grid; grid-template-columns:78px 1fr; gap:24px; align-items:start}
+.step::before{
+  counter-increment:s; content:counter(s,decimal-leading-zero);
+  font-family:Oswald,sans-serif; font-size:40px; line-height:1; color:var(--line);
+}
+.step h3{font-size:19px; text-transform:uppercase; margin-bottom:8px}
+.step p{margin:0 0 10px; color:var(--paper-dim); font-size:16px}
+.step p:last-child{margin-bottom:0}
+.kbd{font-family:"JetBrains Mono",monospace; font-size:13px; background:var(--ink-3); border:1px solid var(--line); padding:2px 7px; color:var(--paper)}
+.warn{border-left:2px solid var(--blood); padding-left:14px; color:var(--paper-dim); font-size:15px}
+
+/* донат */
+.tiers{display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start}
+.tier{border:1px solid var(--line); background:var(--ink-2); padding:30px}
+.tier.gold{border-color:var(--amber); background:linear-gradient(180deg,rgba(201,139,58,.09),transparent 60%)}
+.tier h3{font-size:26px; text-transform:uppercase; letter-spacing:.04em}
+.tier .price{font-family:"JetBrains Mono",monospace; color:var(--amber-hi); font-size:14px; letter-spacing:.1em; margin:6px 0 20px}
+.perks{list-style:none; margin:0; padding:0; display:grid; gap:12px}
+.perks li{position:relative; padding-left:26px; color:var(--paper-dim); font-size:16px}
+.perks li::before{content:""; position:absolute; left:0; top:.62em; width:11px; height:1px; background:var(--amber)}
+.perks li b{color:var(--paper); font-weight:500}
+.honest{margin-top:26px; border:1px dashed var(--line); padding:20px 22px; color:var(--paper-dim); font-size:16px}
+.honest b{color:var(--paper); font-weight:500}
+
+/* связь */
+.links{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line)}
+.link{background:var(--ink); padding:28px 26px; text-decoration:none; display:block}
+.link:hover{background:var(--ink-2)}
+.link .who{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-low)}
+.link h3{font-size:22px; text-transform:uppercase; margin:8px 0 6px}
+.link p{margin:0; color:var(--paper-dim); font-size:15px}
+.link .go{display:inline-block; margin-top:14px; color:var(--amber); font-size:14px}
+
+/* подвал */
+footer{padding:36px 0 54px; color:var(--paper-low); font-size:14px}
+footer .wrap{display:flex; gap:20px; flex-wrap:wrap; align-items:center; justify-content:space-between}
+footer a{color:var(--paper-dim)}
+
+@media (max-width:900px){
+  .hero .wrap{grid-template-columns:1fr; gap:34px; padding:52px 24px 46px}
+  .spread{grid-template-columns:1fr; gap:30px}
+  .feat{grid-column:span 12 !important}
+  .tiers{grid-template-columns:1fr}
+  .links{grid-template-columns:1fr}
+  .nav{display:none}
+  section > .wrap{padding:54px 24px}
+  .step{grid-template-columns:52px 1fr; gap:16px; padding:22px}
+  .step::before{font-size:30px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><b>Magic</b> Pack</a>
+    <nav class="nav">
+      <a href="#mir">Мир</a>
+      <a href="#chto">Механики</a>
+      <a href="#start">Как зайти</a>
+      <a href="#donat">Покровителям</a>
+      <a href="#svyaz">Связь</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Minecraft 1.21.1 · NeoForge · русский сервер</div>
+      <h1>Мёртвые<br>поумнели<span>живые — держатся</span></h1>
+      <p class="lede">
+        Катастрофа была давно, и мир успел к ней привыкнуть. Города стоят пустые, дороги заросли,
+        а те, кто выжил, живут за стенами и считают дни до следующей лунной ночи.
+        <b>Здесь орда учится вместе с тобой:</b> чем ты сильнее, тем умнее становятся те,
+        кто приходит за тобой в темноте.
+      </p>
+      <div class="cta">
+        <a class="btn" href="#start">Как начать играть</a>
+        <a class="btn ghost" href="#donat">Стать покровителем</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Адрес сервера</div>
+      <div class="ipline">
+        <span class="ip" id="ip">zaluplay.gomc.fun</span>
+        <button class="copy" data-copy="zaluplay.gomc.fun">Копировать</button>
+      </div>
+      <div class="meta">
+        <div><span>Прямой адрес</span><b>213.152.43.89:25589</b></div>
+        <div><span>Версия</span><b>1.21.1 / NeoForge</b></div>
+        <div><span>Режим</span><b>Выживание, кооператив</b></div>
+        <div><span>Локация</span><b>Москва</b></div>
+        <div><span>Вход</span><b>По сборке, без пароля</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="mir">
+  <div class="wrap">
+    <div class="head"><span class="num">01</span><h2>Что это за мир</h2><span class="rule"></span></div>
+    <div class="spread">
+      <div class="prose">
+        <p>
+          Это не «ванилла с модами на магию». Это собранный под один сюжет мир, где всё завязано друг на друга:
+          твоя сила, поведение мобов, жизнь поселений и цена вещей.
+        </p>
+        <p>
+          Первые ночи ты будешь прятаться. Потом найдёшь первое поселение выживших — стены, ворота, часовые на башнях,
+          внутри работники со своими делами. Там тебе продадут лечение за жетоны, накормят горячим,
+          дадут заказ от гильдии и расскажут слух о руинах, где что-то осталось.
+        </p>
+        <p>
+          Дальше ты выберешь школу магии, и мир начнёт отвечать. <b>Мобы перестанут лезть по одному.</b>
+          Раненые начнут отступать. Стая, потерявшая половину своих, побежит. А когда ты оторвёшься от погони в темноте —
+          они не забудут, а пойдут прочёсывать район.
+        </p>
+        <p>
+          Поселение, которому ты помогаешь, растёт на глазах: плетень сменяется частоколом, частокол — каменной стеной
+          с зубцами и рунами-фонарями. Появляются новые работники, ярмарка с редким товаром, дань покровителю.
+          А если орда проломит защиту — уровень упадёт, и это будет видно.
+        </p>
+      </div>
+      <div>
+        <div class="pull">
+          «Поодиночке не лезем. Ждём своих.»
+          <small>Правило орды, ступень 2</small>
+        </div>
+        <div class="card" style="margin-top:30px">
+          <div class="label">Коротко</div>
+          <div class="meta" style="border-top:0; padding-top:10px">
+            <div><span>Модов</span><b>~80</b></div>
+            <div><span>Школы магии</span><b>2</b></div>
+            <div><span>Ступеней развития</span><b>8</b></div>
+            <div><span>Роли в поселениях</span><b>11</b></div>
+            <div><span>Интерфейс</span><b>Полностью русский</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="chto">
+  <div class="wrap">
+    <div class="head"><span class="num">02</span><h2>На чём тут всё держится</h2><span class="rule"></span></div>
+    <div class="feats">
+      <div class="feat">
+        <span class="tag">Главное</span>
+        <h3>Разум орды</h3>
+        <p>
+          У мёртвых есть уровень разума, и он догоняет твою ступень развития. Сначала это обычные зомби.
+          Потом они начинают собираться в стаю и ждать своих, раненые отступают, а стая, потерявшая нескольких,
+          обращается в бегство. Дальше — хуже: они переключаются на того, кто слабее или занят, обходят с боков,
+          а эндермены утаскивают сквозь стену. Прокачался — готовься к другой игре.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Ночь</span>
+        <h3>Скрытность</h3>
+        <p>
+          Темнота работает на тебя: в ней заметность падает, и от погони можно оторваться.
+          Но каждый твой побег они запоминают — в следующий раз ищут дольше и шире.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Выбор</span>
+        <h3>Две школы</h3>
+        <p>
+          Боевая магия Iron's Spellbooks или созидание Ars Nouveau. Перед выбором дают попробовать обе
+          на учебных заданиях и показывают честное сравнение. Сменить потом можно, но дорого.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Прогресс</span>
+        <h3>Своё древо</h3>
+        <p>
+          Восемь ступеней в отдельном окне на <span class="kbd">J</span>. Видно текущие цели и один следующий шаг
+          силуэтом, дальше туман. У каждого задания — сюжет и блок «что сделать, где искать, зачем».
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Экономика</span>
+        <h3>Жетоны выживших</h3>
+        <p>
+          Валюта мира. Ими платят за лечение, еду, починку, ману, аренду шкафчика и заказы гильдии.
+          Изумруды честно пересчитываются, а цена руды считается по реальной добыче — абузов нет.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Люди</span>
+        <h3>Поселения</h3>
+        <p>
+          Города, лагеря и хутора со стенами, воротами, башнями, площадью и полями. Внутри — работники с ролями:
+          лекарь, травник, повар, кузнец, маг, кладовщик, командир, гильдмейстер, торговец, староста, колесник.
+          Дом каждого видно снаружи: вывеска над дверью, флаг цвета роли на крыше, фонари у входа.
+          Фермера, стражника или носильщика можно нанять на несколько дней с собой.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Вещи</span>
+        <h3>Колесо апгрейдера</h3>
+        <p>
+          Механика, ради которой стоит копить: вещь превращается в предмет более высокой ступени.
+          Цена честная, потолок ступеней зависит от развитости поселения, круток в сутки ограниченное число.
+          У прокачанного города можно нанять колесника и увести с собой.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <div class="head"><span class="num">03</span><h2>Как зайти</h2><span class="rule"></span></div>
+    <p class="prose" style="margin-bottom:30px">
+      Сборка ставится в официальный лаунчер Minecraft одним файлом. Пиратские лаунчеры тоже подойдут,
+      но шаги там свои — смотри примечание в конце.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <div>
+          <h3>Поставь Java 21</h3>
+          <p>Без неё сборка не запустится. Бери Temurin 21 и при установке отметь галочку <b>Add to PATH</b>.</p>
+          <p><a class="btn ghost" href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Скачать Java 21</a></p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Скачай сборку и запусти «Установить.bat»</h3>
+          <p>
+            Перед этим запусти официальный лаунчер Minecraft один раз и закрой — иначе установщику некуда ставить.
+            Дальше распакуй архив в любую папку и запусти <span class="kbd">Установить.bat</span>.
+            Он сам поставит NeoForge, скопирует сборку и добавит профиль <b>Magic Pack</b> в лаунчер.
+          </p>
+          <p><a class="btn" id="dl" href="https://github.com/GoLsik-web/magicpack/releases/latest" target="_blank" rel="noopener">Скачать сборку</a></p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Зайди на сервер</h3>
+          <p>
+            Открой лаунчер, выбери профиль <b>Magic Pack</b> и нажми «Играть».
+            В игре — «Сетевая игра» → «Добавить сервер» → вставь адрес:
+          </p>
+          <div class="ipline">
+            <span class="ip" style="font-size:20px">zaluplay.gomc.fun</span>
+            <button class="copy" data-copy="zaluplay.gomc.fun">Копировать</button>
+          </div>
+          <p style="margin-top:14px">Если адрес не находится — вставь прямой: <span class="kbd">213.152.43.89:25589</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="honest" style="margin-top:28px">
+      <b>Если тормозит.</b> Нажми <span class="kbd">F7</span> — это выключит шейдеры, они съедают больше всего.
+      Дальше в настройках графики поставь дальность прорисовки 8–10 и частицы «Меньше».
+      Память для игры меняется в лаунчере: Установки → Magic Pack → Дополнительно → аргументы JVM
+      (на 8 ГБ ОЗУ ставь <span class="kbd">-Xmx4G</span>).
+      <br><br>
+      <b>Другой лаунчер</b> (TLauncher, Prism и подобные): поставь NeoForge 21.1.250 для Minecraft 1.21.1
+      и скопируй содержимое папки «minecraft» из архива в папку профиля.
+    </div>
+  </div>
+</section>
+
+<section id="donat">
+  <div class="wrap">
+    <div class="head"><span class="num">04</span><h2>Покровителям</h2><span class="rule"></span></div>
+    <p class="prose" style="margin-bottom:30px">
+      Сервер оплачивается из кармана и живёт, пока хватает на хостинг. Поддержать можно — и за это есть роль
+      <b>Покровитель</b>. Сразу о главном: <b>она не даёт преимущества в игре</b>. Ни предметов, ни ступеней,
+      ни ресурсов, ни боевых бонусов. Только видимость, удобство и приятные мелочи.
+    </p>
+    <div class="tiers">
+      <div class="tier gold">
+        <h3>Покровитель</h3>
+        <div class="price">Разовая поддержка · роль навсегда</div>
+        <ul class="perks">
+          <li><b>Цветное имя</b> в чате и отдельная метка в списке игроков</li>
+          <li><b>Титул на выбор</b> — из списка титулов гильдии</li>
+          <li><b>Приоритетный вход</b>, когда сервер забит под завязку</li>
+          <li><b>Знамя с твоим именем</b> на стене поселения, которому ты покровительствуешь</li>
+          <li><b>Имя на стеле</b> в столице — навсегда, даже если перестанешь играть</li>
+          <li><b>Закрытый канал</b> в Discord и право голоса в опросах по серверу</li>
+          <li><b>Косметика:</b> свой цвет флага и фонарей у дома, набор частиц при телепорте</li>
+        </ul>
+      </div>
+      <div class="tier">
+        <h3>Что не продаётся</h3>
+        <div class="price">Принципиально</div>
+        <ul class="perks">
+          <li>Предметы, зачарования и ресурсы</li>
+          <li>Ступени развития и очки навыков</li>
+          <li>Жетоны выживших и репутация поселений</li>
+          <li>Крутки колеса апгрейдера</li>
+          <li>Любые боевые бонусы, брони, урон, скорость</li>
+          <li>Право нарушать правила и обходить наказания</li>
+        </ul>
+        <div class="honest" style="margin-top:22px">
+          Если что-то из этого когда-нибудь появится в продаже — считай, что сервер кончился.
+          Смысл сборки в том, что всё зарабатывается в мире.
+        </div>
+      </div>
+    </div>
+    <div class="cta" style="margin-top:28px">
+      <a class="btn" id="donate" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">Поддержать сервер</a>
+      <a class="btn ghost" href="#svyaz">Написать в Discord</a>
+    </div>
+    <p style="color:var(--paper-low); font-size:14px; margin-top:14px">
+      После перевода напиши в Discord — роль выдаём вручную, обычно в тот же день.
+    </p>
+  </div>
+</section>
+
+<section id="svyaz">
+  <div class="wrap">
+    <div class="head"><span class="num">05</span><h2>Связь</h2><span class="rule"></span></div>
+    <div class="links">
+      <a class="link" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">
+        <div class="who">Основное место</div>
+        <h3>Discord</h3>
+        <p>Новости сервера, поиск команды, помощь с установкой, заявки на роль покровителя.</p>
+        <span class="go">Зайти на сервер →</span>
+      </a>
+      <a class="link" href="https://www.twitch.tv/rain09k" target="_blank" rel="noopener">
+        <div class="who">Стримы</div>
+        <h3>Twitch</h3>
+        <p>Как всё это выглядит вживую: вылазки, ночи орд, стройка и разбор механик.</p>
+        <span class="go">Смотреть →</span>
+      </a>
+      <a class="link" href="https://t.me/mouds9" target="_blank" rel="noopener">
+        <div class="who">Коротко</div>
+        <h3>Telegram</h3>
+        <p>Анонсы вайпов, обновлений сборки и технических работ. Без спама.</p>
+        <span class="go">Подписаться →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Magic Pack · Minecraft 1.21.1 · NeoForge 21.1.250</div>
+    <div class="mono" style="font-size:13px">zaluplay.gomc.fun</div>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll(".copy").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var text = b.dataset.copy;
+    var done = function () {
+      var old = b.textContent;
+      b.textContent = "Скопировано";
+      b.classList.add("done");
+      setTimeout(function () { b.textContent = old; b.classList.remove("done"); }, 1600);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  });
+});
+function fallback(text, done) {
+  var t = document.createElement("textarea");
+  t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+  document.body.appendChild(t); t.select();
+  try { document.execCommand("copy"); done(); } catch (e) {}
+  document.body.removeChild(t);
+}
+</script>
+</body>
+</html>
