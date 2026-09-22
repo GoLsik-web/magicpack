@@ -18,110 +18,205 @@
   --ink-2:#1c1815;
   --ink-3:#241f1a;
   --line:#3a322a;
+  --line-hi:#5a4c3d;
   --paper:#e9e1d3;
   --paper-dim:#b9ae9b;
   --paper-low:#8b8172;
   --amber:#c98b3a;
+  --amber-hi:#e8ad5c;
   --rune:#8a6bd8;
+  --rune-hi:#a98cf0;
   --blood:#a5402f;
   --maxw:1180px;
+  --ease:cubic-bezier(.22,.61,.36,1);
 }
-:root{ --amber-hi:#e8ad5c; }
-
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
   margin:0; background:var(--ink); color:var(--paper);
   font-family:"Golos Text",system-ui,sans-serif; font-size:17px; line-height:1.62;
-  -webkit-font-smoothing:antialiased;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
 }
-body::before{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:100; opacity:.05;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-img{max-width:100%}
 a{color:inherit}
 h1,h2,h3{font-family:Oswald,"Golos Text",sans-serif; font-weight:500; letter-spacing:.01em; margin:0}
 .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
 
-/* ------------------------------------------------ шапка */
+/* ============================================ фон: угли, туман, зерно */
+#ash{position:fixed; inset:0; z-index:-2; pointer-events:none}
+.fog{position:fixed; inset:-20vh -20vw; z-index:-3; pointer-events:none}
+.fog i{
+  position:absolute; border-radius:50%; filter:blur(70px); opacity:.5;
+  animation:drift 46s var(--ease) infinite alternate;
+}
+.fog i:nth-child(1){left:6%;  top:4%;   width:46vw; height:46vw; background:rgba(201,139,58,.10); animation-duration:52s}
+.fog i:nth-child(2){right:2%; top:22%;  width:40vw; height:40vw; background:rgba(138,107,216,.11); animation-duration:64s; animation-delay:-12s}
+.fog i:nth-child(3){left:28%; bottom:2%;width:52vw; height:52vw; background:rgba(165,64,47,.07);  animation-duration:74s; animation-delay:-26s}
+@keyframes drift{
+  from{transform:translate3d(-4vw,-3vh,0) scale(1)}
+  to  {transform:translate3d(6vw,5vh,0)  scale(1.18)}
+}
+.grain{
+  position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 7s steps(6) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}      20%{transform:translate(-4%,3%)}
+  40%{transform:translate(3%,-4%)}  60%{transform:translate(-3%,-2%)}
+  80%{transform:translate(4%,2%)}   100%{transform:translate(0,0)}
+}
+
+/* ============================================ шапка */
 .top{
-  position:sticky; top:0; z-index:50; background:rgba(20,17,15,.92);
-  backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:50; background:rgba(20,17,15,.86);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
 }
 .top .wrap{display:flex; align-items:center; gap:28px; height:62px}
-.brand{font-family:Oswald,sans-serif; font-size:21px; letter-spacing:.14em; text-transform:uppercase; text-decoration:none}
+.brand{font-family:Oswald,sans-serif; font-size:21px; letter-spacing:.14em; text-transform:uppercase; text-decoration:none; position:relative}
 .brand b{color:var(--amber); font-weight:500}
+.brand::after{content:""; position:absolute; left:0; right:100%; bottom:-6px; height:1px; background:var(--amber); transition:right .4s var(--ease)}
+.brand:hover::after{right:0}
 .nav{display:flex; gap:22px; margin-left:auto; font-size:14px; letter-spacing:.06em; text-transform:uppercase}
-.nav a{color:var(--paper-dim); text-decoration:none; padding:4px 0; border-bottom:1px solid transparent}
-.nav a:hover{color:var(--paper); border-bottom-color:var(--amber)}
-.burger{display:none}
+.nav a{color:var(--paper-dim); text-decoration:none; padding:4px 0; position:relative}
+.nav a::after{content:""; position:absolute; left:0; right:100%; bottom:0; height:1px; background:var(--amber); transition:right .35s var(--ease)}
+.nav a:hover{color:var(--paper)}
+.nav a:hover::after,.nav a.on::after{right:0}
+.nav a.on{color:var(--paper)}
+.bar{position:absolute; left:0; bottom:-1px; height:1px; background:linear-gradient(90deg,var(--amber),var(--rune)); width:0}
 
-/* ------------------------------------------------ герой */
-.hero{position:relative; overflow:hidden; border-bottom:1px solid var(--line)}
-.hero::after{
-  content:""; position:absolute; inset:0;
-  background:
-    radial-gradient(900px 420px at 78% -10%, rgba(138,107,216,.16), transparent 70%),
-    radial-gradient(700px 500px at 8% 110%, rgba(201,139,58,.12), transparent 70%);
-  pointer-events:none;
+/* ============================================ боковая шкала */
+.rail{
+  position:fixed; left:26px; top:50%; transform:translateY(-50%); z-index:40;
+  display:flex; flex-direction:column; gap:16px;
 }
-.hero .wrap{position:relative; z-index:1; padding:74px 24px 64px; display:grid; grid-template-columns:1.25fr .85fr; gap:54px; align-items:start}
-.eyebrow{font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--amber); margin-bottom:18px}
-.hero h1{font-size:clamp(44px,7vw,82px); line-height:.94; letter-spacing:-.01em; text-transform:uppercase}
-.hero h1 span{display:block; color:var(--paper-low)}
-.lede{margin:26px 0 0; font-size:19px; max-width:34em; color:#cfc6b6}
+.rail a{
+  display:flex; align-items:center; gap:10px; text-decoration:none;
+  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em; color:var(--paper-low);
+  opacity:.55; transition:opacity .3s var(--ease), color .3s var(--ease);
+}
+.rail a i{display:block; width:14px; height:1px; background:currentColor; transition:width .35s var(--ease)}
+.rail a span{opacity:0; transform:translateX(-6px); transition:opacity .3s var(--ease), transform .35s var(--ease)}
+.rail a:hover,.rail a.on{opacity:1; color:var(--amber-hi)}
+.rail a.on i{width:30px}
+.rail a:hover span,.rail a.on span{opacity:1; transform:none}
+@media (max-width:1400px){.rail{display:none}}
+
+/* ============================================ появление по скроллу */
+.rise{opacity:0; transform:translateY(26px); transition:opacity .75s var(--ease), transform .75s var(--ease)}
+.rise.in{opacity:1; transform:none}
+.rise.d1{transition-delay:.08s} .rise.d2{transition-delay:.16s}
+.rise.d3{transition-delay:.24s} .rise.d4{transition-delay:.32s}
+.wipe{clip-path:inset(0 100% 0 0); transition:clip-path 1.1s var(--ease)}
+.wipe.in{clip-path:inset(0 0 0 0)}
+
+/* ============================================ герой */
+.hero{position:relative; overflow:hidden; border-bottom:1px solid var(--line); min-height:88vh; display:flex; align-items:center}
+.hero .wrap{position:relative; z-index:1; padding:74px 24px; display:grid; grid-template-columns:1.25fr .85fr; gap:54px; align-items:center; width:100%}
+.eyebrow{font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--amber); margin-bottom:18px; display:flex; align-items:center; gap:12px}
+.eyebrow::before{content:""; width:34px; height:1px; background:var(--amber); animation:grow 1.2s var(--ease) both .2s}
+@keyframes grow{from{width:0}to{width:34px}}
+.pulse{width:7px; height:7px; border-radius:50%; background:#78b04a; box-shadow:0 0 0 0 rgba(120,176,74,.7); animation:beat 2.4s infinite}
+@keyframes beat{
+  0%{box-shadow:0 0 0 0 rgba(120,176,74,.55)}
+  70%{box-shadow:0 0 0 9px rgba(120,176,74,0)}
+  100%{box-shadow:0 0 0 0 rgba(120,176,74,0)}
+}
+.hero h1{font-size:clamp(44px,7.2vw,86px); line-height:.94; letter-spacing:-.01em; text-transform:uppercase}
+.hero h1 .ln{display:block; overflow:hidden}
+.hero h1 .ln > span{display:block; transform:translateY(105%); animation:drop 1s var(--ease) both}
+.hero h1 .ln:nth-child(1) > span{animation-delay:.15s}
+.hero h1 .ln:nth-child(2) > span{animation-delay:.28s}
+.hero h1 .ln:nth-child(3) > span{animation-delay:.41s; color:var(--paper-low)}
+@keyframes drop{to{transform:none}}
+.lede{margin:26px 0 0; font-size:19px; max-width:34em; color:#cfc6b6; animation:fade 1s var(--ease) both .62s}
 .lede b{color:var(--paper); font-weight:500}
+@keyframes fade{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:none}}
+.cta{display:flex; gap:12px; margin-top:26px; flex-wrap:wrap; animation:fade 1s var(--ease) both .74s}
+.scrollhint{
+  position:absolute; left:50%; bottom:22px; transform:translateX(-50%); z-index:2;
+  font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--paper-low);
+  display:flex; flex-direction:column; align-items:center; gap:8px; animation:fade 1s var(--ease) both 1.1s;
+}
+.scrollhint i{display:block; width:1px; height:34px; background:linear-gradient(var(--paper-low),transparent); animation:slide 2.2s var(--ease) infinite}
+@keyframes slide{0%{transform:scaleY(.2); transform-origin:top}50%{transform:scaleY(1); transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(.2); transform-origin:bottom}}
 
 /* карточка адреса */
-.card{border:1px solid var(--line); background:linear-gradient(180deg,var(--ink-2),var(--ink)); padding:22px}
-.card .label{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-low)}
-.ipline{display:flex; align-items:center; gap:10px; margin-top:8px}
+.card{
+  border:1px solid var(--line); background:linear-gradient(180deg,rgba(28,24,21,.94),rgba(20,17,15,.9));
+  padding:22px; position:relative; animation:fade 1s var(--ease) both .5s;
+}
+.card::before{content:""; position:absolute; inset:-1px; border:1px solid transparent; background:linear-gradient(140deg,rgba(201,139,58,.5),transparent 40%) border-box; -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none}
+.card .label{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-low); display:flex; align-items:center; gap:10px}
+.ipline{display:flex; align-items:center; gap:10px; margin-top:10px}
 .ip{font-family:"JetBrains Mono",monospace; font-size:clamp(18px,2.4vw,25px); color:var(--amber-hi); word-break:break-all}
 .copy{
   border:1px solid var(--line); background:transparent; color:var(--paper-dim);
   font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
-  padding:7px 11px; cursor:pointer; white-space:nowrap;
+  padding:7px 11px; cursor:pointer; white-space:nowrap; transition:.3s var(--ease); position:relative; overflow:hidden;
 }
-.copy:hover{border-color:var(--amber); color:var(--amber-hi)}
+.copy:hover{border-color:var(--amber); color:var(--amber-hi); transform:translateY(-1px)}
 .copy.done{border-color:#6f8a4a; color:#a8c57a}
 .meta{margin-top:18px; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:7px; font-size:14px}
 .meta div{display:flex; justify-content:space-between; gap:14px; color:var(--paper-low)}
 .meta b{color:var(--paper-dim); font-weight:500; font-family:"JetBrains Mono",monospace; font-size:13px; text-align:right}
-.cta{display:flex; gap:12px; margin-top:20px; flex-wrap:wrap}
 .btn{
   display:inline-block; text-decoration:none; padding:13px 20px; font-family:Oswald,sans-serif;
   font-size:15px; letter-spacing:.1em; text-transform:uppercase; border:1px solid var(--amber);
-  color:var(--ink); background:var(--amber);
+  color:var(--ink); background:var(--amber); position:relative; overflow:hidden; transition:.35s var(--ease);
 }
-.btn:hover{background:var(--amber-hi); border-color:var(--amber-hi)}
+.btn span{position:relative; z-index:1}
+.btn::after{content:""; position:absolute; inset:0; background:var(--amber-hi); transform:translateY(101%); transition:transform .38s var(--ease)}
+.btn:hover::after{transform:none}
+.btn:hover{transform:translateY(-2px)}
 .btn.ghost{background:transparent; color:var(--paper); border-color:var(--line)}
-.btn.ghost:hover{border-color:var(--paper-dim); background:rgba(233,225,211,.05)}
+.btn.ghost::after{background:rgba(233,225,211,.07)}
+.btn.ghost:hover{border-color:var(--paper-dim)}
 
-/* ------------------------------------------------ секции */
-section{border-bottom:1px solid var(--line)}
-section > .wrap{padding:76px 24px}
-.head{display:flex; align-items:baseline; gap:18px; margin-bottom:34px}
+/* ============================================ секции */
+section{border-bottom:1px solid var(--line); position:relative}
+section > .wrap{padding:96px 24px}
+.head{display:flex; align-items:baseline; gap:18px; margin-bottom:38px}
 .num{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--amber); letter-spacing:.2em}
-.head h2{font-size:clamp(28px,4vw,42px); text-transform:uppercase; letter-spacing:.01em}
+.head h2{font-size:clamp(28px,4vw,42px); text-transform:uppercase}
 .head .rule{flex:1; height:1px; background:var(--line); transform:translateY(-6px)}
-
 .prose{max-width:62ch; font-size:18px; color:#cfc6b6}
 .prose p{margin:0 0 18px}
 .prose b{color:var(--paper); font-weight:500}
 
-/* мир — двухколоночный разворот */
 .spread{display:grid; grid-template-columns:1.1fr .9fr; gap:52px; align-items:start}
 .pull{
-  border-left:2px solid var(--amber); padding:4px 0 4px 20px; margin:6px 0 0;
-  font-family:Oswald,sans-serif; font-size:23px; line-height:1.34; text-transform:none; color:var(--paper);
+  border-left:2px solid var(--amber); padding:4px 0 4px 20px;
+  font-family:Oswald,sans-serif; font-size:23px; line-height:1.34; color:var(--paper);
 }
 .pull small{display:block; margin-top:10px; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--paper-low)}
+.stat b{font-size:26px; font-family:Oswald,sans-serif; color:var(--amber-hi)}
 
-/* механики — неравные блоки */
+/* ============================================ ступени разума */
+.mind{border:1px solid var(--line); background:rgba(28,24,21,.6); padding:30px; margin-top:12px}
+.mind .lab{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-low)}
+.ticks{display:flex; gap:6px; margin:16px 0 22px}
+.tick{
+  flex:1; background:none; border:1px solid var(--line); color:var(--paper-low); cursor:pointer;
+  font-family:"JetBrains Mono",monospace; font-size:12px; padding:9px 0; transition:.3s var(--ease); position:relative;
+}
+.tick:hover{color:var(--paper); border-color:var(--line-hi)}
+.tick.on{color:var(--ink); background:var(--amber); border-color:var(--amber); font-weight:600}
+.tick.on::after{content:""; position:absolute; left:50%; bottom:-9px; width:1px; height:8px; background:var(--amber)}
+.mindbody{min-height:118px}
+.mindbody h3{font-size:21px; text-transform:uppercase; margin-bottom:8px; color:var(--amber-hi)}
+.mindbody p{margin:0; color:var(--paper-dim)}
+.swap{animation:swapin .45s var(--ease) both}
+@keyframes swapin{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:none}}
+.gauge{height:2px; background:var(--line); margin-top:20px; position:relative; overflow:hidden}
+.gauge i{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg,var(--amber),var(--rune)); transition:width .5s var(--ease)}
+
+/* ============================================ механики */
 .feats{display:grid; grid-template-columns:repeat(12,1fr); gap:1px; background:var(--line); border:1px solid var(--line)}
-.feat{background:var(--ink); padding:28px 26px 30px}
+.feat{background:var(--ink); padding:28px 26px 30px; position:relative; overflow:hidden; transition:background .4s var(--ease)}
+.feat::before{content:""; position:absolute; left:0; top:0; width:100%; height:1px; background:linear-gradient(90deg,var(--amber),transparent); transform:scaleX(0); transform-origin:left; transition:transform .5s var(--ease)}
+.feat:hover{background:var(--ink-2)}
+.feat:hover::before{transform:none}
 .feat:nth-child(1){grid-column:span 7}
 .feat:nth-child(2){grid-column:span 5}
 .feat:nth-child(3){grid-column:span 4}
@@ -129,64 +224,91 @@ section > .wrap{padding:76px 24px}
 .feat:nth-child(5){grid-column:span 4}
 .feat:nth-child(6){grid-column:span 5}
 .feat:nth-child(7){grid-column:span 7}
-.feat h3{font-size:20px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px}
+.feat h3{font-size:20px; text-transform:uppercase; margin-bottom:10px}
 .feat .tag{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--rune); display:block; margin-bottom:12px}
 .feat p{margin:0; color:var(--paper-dim); font-size:16px}
 
-/* шаги */
-.steps{counter-reset:s; display:grid; gap:1px; background:var(--line); border:1px solid var(--line)}
-.step{background:var(--ink); padding:26px; display:grid; grid-template-columns:78px 1fr; gap:24px; align-items:start}
+/* ============================================ шаги */
+.steps{counter-reset:s; display:grid; gap:1px; background:var(--line); border:1px solid var(--line); position:relative}
+.step{background:var(--ink); padding:28px; display:grid; grid-template-columns:86px 1fr; gap:24px; align-items:start; position:relative}
 .step::before{
   counter-increment:s; content:counter(s,decimal-leading-zero);
-  font-family:Oswald,sans-serif; font-size:40px; line-height:1; color:var(--line);
+  font-family:Oswald,sans-serif; font-size:44px; line-height:1; color:var(--line-hi); transition:color .5s var(--ease);
 }
+.step.in::before{color:var(--amber)}
 .step h3{font-size:19px; text-transform:uppercase; margin-bottom:8px}
 .step p{margin:0 0 10px; color:var(--paper-dim); font-size:16px}
 .step p:last-child{margin-bottom:0}
 .kbd{font-family:"JetBrains Mono",monospace; font-size:13px; background:var(--ink-3); border:1px solid var(--line); padding:2px 7px; color:var(--paper)}
-.warn{border-left:2px solid var(--blood); padding-left:14px; color:var(--paper-dim); font-size:15px}
-
-/* донат */
-.tiers{display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start}
-.tier{border:1px solid var(--line); background:var(--ink-2); padding:30px}
-.tier.gold{border-color:var(--amber); background:linear-gradient(180deg,rgba(201,139,58,.09),transparent 60%)}
-.tier h3{font-size:26px; text-transform:uppercase; letter-spacing:.04em}
-.tier .price{font-family:"JetBrains Mono",monospace; color:var(--amber-hi); font-size:14px; letter-spacing:.1em; margin:6px 0 20px}
-.perks{list-style:none; margin:0; padding:0; display:grid; gap:12px}
-.perks li{position:relative; padding-left:26px; color:var(--paper-dim); font-size:16px}
-.perks li::before{content:""; position:absolute; left:0; top:.62em; width:11px; height:1px; background:var(--amber)}
-.perks li b{color:var(--paper); font-weight:500}
-.honest{margin-top:26px; border:1px dashed var(--line); padding:20px 22px; color:var(--paper-dim); font-size:16px}
+.honest{border:1px dashed var(--line); padding:22px; color:var(--paper-dim); font-size:16px}
 .honest b{color:var(--paper); font-weight:500}
 
-/* связь */
+/* ============================================ донат */
+.tiers{display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start}
+.tier{border:1px solid var(--line); background:rgba(28,24,21,.66); padding:32px; transition:.4s var(--ease)}
+.tier:hover{transform:translateY(-3px); border-color:var(--line-hi)}
+.tier.gold{border-color:var(--amber); background:linear-gradient(180deg,rgba(201,139,58,.10),rgba(28,24,21,.5) 62%)}
+.tier h3{font-size:27px; text-transform:uppercase}
+.tier .price{font-family:"JetBrains Mono",monospace; color:var(--amber-hi); font-size:14px; letter-spacing:.1em; margin:6px 0 22px}
+.perks{list-style:none; margin:0; padding:0; display:grid; gap:12px}
+.perks li{position:relative; padding-left:26px; color:var(--paper-dim); font-size:16px}
+.perks li::before{content:""; position:absolute; left:0; top:.62em; width:11px; height:1px; background:var(--amber); transition:width .35s var(--ease)}
+.perks li:hover::before{width:18px}
+.perks li b{color:var(--paper); font-weight:500}
+.tier.no .perks li::before{background:var(--blood)}
+
+/* ============================================ связь */
 .links{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line)}
-.link{background:var(--ink); padding:28px 26px; text-decoration:none; display:block}
+.link{background:var(--ink); padding:30px 26px; text-decoration:none; display:block; position:relative; overflow:hidden; transition:background .4s var(--ease)}
+.link::after{content:""; position:absolute; left:0; bottom:0; height:2px; width:100%; background:var(--amber); transform:scaleX(0); transform-origin:left; transition:transform .45s var(--ease)}
 .link:hover{background:var(--ink-2)}
+.link:hover::after{transform:none}
 .link .who{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-low)}
 .link h3{font-size:22px; text-transform:uppercase; margin:8px 0 6px}
 .link p{margin:0; color:var(--paper-dim); font-size:15px}
-.link .go{display:inline-block; margin-top:14px; color:var(--amber); font-size:14px}
+.link .go{display:inline-block; margin-top:14px; color:var(--amber); font-size:14px; transition:transform .35s var(--ease)}
+.link:hover .go{transform:translateX(6px)}
 
-/* подвал */
-footer{padding:36px 0 54px; color:var(--paper-low); font-size:14px}
+footer{padding:38px 0 56px; color:var(--paper-low); font-size:14px}
 footer .wrap{display:flex; gap:20px; flex-wrap:wrap; align-items:center; justify-content:space-between}
-footer a{color:var(--paper-dim)}
 
 @media (max-width:900px){
-  .hero .wrap{grid-template-columns:1fr; gap:34px; padding:52px 24px 46px}
+  .hero{min-height:auto}
+  .hero .wrap{grid-template-columns:1fr; gap:34px; padding:54px 24px 48px}
   .spread{grid-template-columns:1fr; gap:30px}
   .feat{grid-column:span 12 !important}
   .tiers{grid-template-columns:1fr}
   .links{grid-template-columns:1fr}
   .nav{display:none}
-  section > .wrap{padding:54px 24px}
-  .step{grid-template-columns:52px 1fr; gap:16px; padding:22px}
+  section > .wrap{padding:58px 24px}
+  .step{grid-template-columns:54px 1fr; gap:16px; padding:22px}
   .step::before{font-size:30px}
+  .scrollhint{display:none}
+  .ticks{flex-wrap:wrap}
+  .tick{flex:0 0 calc(25% - 5px)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important; transition:none !important}
+  .rise{opacity:1; transform:none}
+  .wipe{clip-path:none}
+  #ash,.fog,.grain{display:none}
+  .hero h1 .ln > span{transform:none}
 }
 </style>
 </head>
 <body>
+
+<div class="fog" aria-hidden="true"><i></i><i></i><i></i></div>
+<canvas id="ash" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+
+<nav class="rail" aria-label="Разделы">
+  <a href="#mir"   data-rail="mir"><i></i><span>Мир</span></a>
+  <a href="#chto"  data-rail="chto"><i></i><span>Механики</span></a>
+  <a href="#start" data-rail="start"><i></i><span>Как зайти</span></a>
+  <a href="#donat" data-rail="donat"><i></i><span>Покровителям</span></a>
+  <a href="#svyaz" data-rail="svyaz"><i></i><span>Связь</span></a>
+</nav>
 
 <header class="top">
   <div class="wrap">
@@ -199,13 +321,18 @@ footer a{color:var(--paper-dim)}
       <a href="#svyaz">Связь</a>
     </nav>
   </div>
+  <i class="bar" id="bar"></i>
 </header>
 
-<div class="hero">
+<div class="hero" id="hero">
   <div class="wrap">
     <div>
       <div class="eyebrow">Minecraft 1.21.1 · NeoForge · русский сервер</div>
-      <h1>Мёртвые<br>поумнели<span>живые — держатся</span></h1>
+      <h1>
+        <span class="ln"><span>Мёртвые</span></span>
+        <span class="ln"><span>поумнели</span></span>
+        <span class="ln"><span>живые — держатся</span></span>
+      </h1>
       <p class="lede">
         Катастрофа была давно, и мир успел к ней привыкнуть. Города стоят пустые, дороги заросли,
         а те, кто выжил, живут за стенами и считают дни до следующей лунной ночи.
@@ -213,15 +340,15 @@ footer a{color:var(--paper-dim)}
         кто приходит за тобой в темноте.
       </p>
       <div class="cta">
-        <a class="btn" href="#start">Как начать играть</a>
-        <a class="btn ghost" href="#donat">Стать покровителем</a>
+        <a class="btn" href="#start"><span>Как начать играть</span></a>
+        <a class="btn ghost" href="#donat"><span>Стать покровителем</span></a>
       </div>
     </div>
 
     <div class="card">
-      <div class="label">Адрес сервера</div>
+      <div class="label"><span class="pulse"></span> Адрес сервера</div>
       <div class="ipline">
-        <span class="ip" id="ip">zaluplay.gomc.fun</span>
+        <span class="ip">zaluplay.gomc.fun</span>
         <button class="copy" data-copy="zaluplay.gomc.fun">Копировать</button>
       </div>
       <div class="meta">
@@ -233,13 +360,14 @@ footer a{color:var(--paper-dim)}
       </div>
     </div>
   </div>
+  <div class="scrollhint"><span>Вниз</span><i></i></div>
 </div>
 
 <section id="mir">
   <div class="wrap">
-    <div class="head"><span class="num">01</span><h2>Что это за мир</h2><span class="rule"></span></div>
+    <div class="head rise"><span class="num">01</span><h2>Что это за мир</h2><span class="rule wipe"></span></div>
     <div class="spread">
-      <div class="prose">
+      <div class="prose rise d1">
         <p>
           Это не «ванилла с модами на магию». Это собранный под один сюжет мир, где всё завязано друг на друга:
           твоя сила, поведение мобов, жизнь поселений и цена вещей.
@@ -261,17 +389,17 @@ footer a{color:var(--paper-dim)}
         </p>
       </div>
       <div>
-        <div class="pull">
+        <div class="pull rise d2">
           «Поодиночке не лезем. Ждём своих.»
           <small>Правило орды, ступень 2</small>
         </div>
-        <div class="card" style="margin-top:30px">
+        <div class="card rise d3" style="margin-top:30px; animation:none">
           <div class="label">Коротко</div>
-          <div class="meta" style="border-top:0; padding-top:10px">
-            <div><span>Модов</span><b>~80</b></div>
-            <div><span>Школы магии</span><b>2</b></div>
-            <div><span>Ступеней развития</span><b>8</b></div>
-            <div><span>Роли в поселениях</span><b>11</b></div>
+          <div class="meta" style="border-top:0; padding-top:12px">
+            <div class="stat"><span>Модов</span><b data-count="80" data-suffix="+">0</b></div>
+            <div class="stat"><span>Школы магии</span><b data-count="2">0</b></div>
+            <div class="stat"><span>Ступеней развития</span><b data-count="8">0</b></div>
+            <div class="stat"><span>Роли в поселениях</span><b data-count="11">0</b></div>
             <div><span>Интерфейс</span><b>Полностью русский</b></div>
           </div>
         </div>
@@ -282,18 +410,16 @@ footer a{color:var(--paper-dim)}
 
 <section id="chto">
   <div class="wrap">
-    <div class="head"><span class="num">02</span><h2>На чём тут всё держится</h2><span class="rule"></span></div>
-    <div class="feats">
-      <div class="feat">
-        <span class="tag">Главное</span>
-        <h3>Разум орды</h3>
-        <p>
-          У мёртвых есть уровень разума, и он догоняет твою ступень развития. Сначала это обычные зомби.
-          Потом они начинают собираться в стаю и ждать своих, раненые отступают, а стая, потерявшая нескольких,
-          обращается в бегство. Дальше — хуже: они переключаются на того, кто слабее или занят, обходят с боков,
-          а эндермены утаскивают сквозь стену. Прокачался — готовься к другой игре.
-        </p>
-      </div>
+    <div class="head rise"><span class="num">02</span><h2>На чём тут всё держится</h2><span class="rule wipe"></span></div>
+
+    <div class="mind rise d1">
+      <div class="lab">Разум орды · выбери ступень и посмотри, что изменится</div>
+      <div class="ticks" id="ticks"></div>
+      <div class="mindbody" id="mindbody"></div>
+      <div class="gauge"><i id="gauge" style="width:0"></i></div>
+    </div>
+
+    <div class="feats rise d2" style="margin-top:34px">
       <div class="feat">
         <span class="tag">Ночь</span>
         <h3>Скрытность</h3>
@@ -307,14 +433,14 @@ footer a{color:var(--paper-dim)}
         <h3>Две школы</h3>
         <p>
           Боевая магия Iron's Spellbooks или созидание Ars Nouveau. Перед выбором дают попробовать обе
-          на учебных заданиях и показывают честное сравнение. Сменить потом можно, но дорого.
+          и показывают честное сравнение. Сменить потом можно, но дорого.
         </p>
       </div>
       <div class="feat">
         <span class="tag">Прогресс</span>
         <h3>Своё древо</h3>
         <p>
-          Восемь ступеней в отдельном окне на <span class="kbd">J</span>. Видно текущие цели и один следующий шаг
+          Восемь ступеней в окне на <span class="kbd">J</span>. Видно текущие цели и один следующий шаг
           силуэтом, дальше туман. У каждого задания — сюжет и блок «что сделать, где искать, зачем».
         </p>
       </div>
@@ -322,27 +448,33 @@ footer a{color:var(--paper-dim)}
         <span class="tag">Экономика</span>
         <h3>Жетоны выживших</h3>
         <p>
-          Валюта мира. Ими платят за лечение, еду, починку, ману, аренду шкафчика и заказы гильдии.
-          Изумруды честно пересчитываются, а цена руды считается по реальной добыче — абузов нет.
-        </p>
-      </div>
-      <div class="feat">
-        <span class="tag">Люди</span>
-        <h3>Поселения</h3>
-        <p>
-          Города, лагеря и хутора со стенами, воротами, башнями, площадью и полями. Внутри — работники с ролями:
-          лекарь, травник, повар, кузнец, маг, кладовщик, командир, гильдмейстер, торговец, староста, колесник.
-          Дом каждого видно снаружи: вывеска над дверью, флаг цвета роли на крыше, фонари у входа.
-          Фермера, стражника или носильщика можно нанять на несколько дней с собой.
+          Валюта мира. Ими платят за лечение, еду, починку, ману и заказы гильдии.
+          Цена руды считается по реальной добыче — абузов нет.
         </p>
       </div>
       <div class="feat">
         <span class="tag">Вещи</span>
         <h3>Колесо апгрейдера</h3>
         <p>
-          Механика, ради которой стоит копить: вещь превращается в предмет более высокой ступени.
-          Цена честная, потолок ступеней зависит от развитости поселения, круток в сутки ограниченное число.
-          У прокачанного города можно нанять колесника и увести с собой.
+          Вещь превращается в предмет более высокой ступени. Потолок зависит от развитости поселения,
+          круток в сутки ограниченное число.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Люди</span>
+        <h3>Поселения</h3>
+        <p>
+          Города, лагеря и хутора со стенами, воротами, башнями и полями. Внутри — работники с ролями:
+          лекарь, травник, повар, кузнец, маг, кладовщик, командир, гильдмейстер, торговец, староста, колесник.
+        </p>
+      </div>
+      <div class="feat">
+        <span class="tag">Навигация</span>
+        <h3>Дом видно снаружи</h3>
+        <p>
+          У дома каждой роли своя вывеска над дверью, флаг своего цвета на крыше и фонари у входа,
+          а на карте появляется именная метка. Искать лекаря по всему городу больше не нужно.
+          Фермера, стражника или носильщика можно нанять с собой на несколько дней.
         </p>
       </div>
     </div>
@@ -351,20 +483,20 @@ footer a{color:var(--paper-dim)}
 
 <section id="start">
   <div class="wrap">
-    <div class="head"><span class="num">03</span><h2>Как зайти</h2><span class="rule"></span></div>
-    <p class="prose" style="margin-bottom:30px">
+    <div class="head rise"><span class="num">03</span><h2>Как зайти</h2><span class="rule wipe"></span></div>
+    <p class="prose rise d1" style="margin-bottom:32px">
       Сборка ставится в официальный лаунчер Minecraft одним файлом. Пиратские лаунчеры тоже подойдут,
       но шаги там свои — смотри примечание в конце.
     </p>
     <div class="steps">
-      <div class="step">
+      <div class="step rise">
         <div>
           <h3>Поставь Java 21</h3>
           <p>Без неё сборка не запустится. Бери Temurin 21 и при установке отметь галочку <b>Add to PATH</b>.</p>
-          <p><a class="btn ghost" href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Скачать Java 21</a></p>
+          <p><a class="btn ghost" href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener"><span>Скачать Java 21</span></a></p>
         </div>
       </div>
-      <div class="step">
+      <div class="step rise d1">
         <div>
           <h3>Скачай сборку и запусти «Установить.bat»</h3>
           <p>
@@ -372,10 +504,10 @@ footer a{color:var(--paper-dim)}
             Дальше распакуй архив в любую папку и запусти <span class="kbd">Установить.bat</span>.
             Он сам поставит NeoForge, скопирует сборку и добавит профиль <b>Magic Pack</b> в лаунчер.
           </p>
-          <p><a class="btn" id="dl" href="https://github.com/GoLsik-web/magicpack/releases/latest" target="_blank" rel="noopener">Скачать сборку</a></p>
+          <p><a class="btn" href="https://github.com/GoLsik-web/magicpack/releases/latest" target="_blank" rel="noopener"><span>Скачать сборку</span></a></p>
         </div>
       </div>
-      <div class="step">
+      <div class="step rise d2">
         <div>
           <h3>Зайди на сервер</h3>
           <p>
@@ -391,10 +523,10 @@ footer a{color:var(--paper-dim)}
       </div>
     </div>
 
-    <div class="honest" style="margin-top:28px">
+    <div class="honest rise d1" style="margin-top:30px">
       <b>Если тормозит.</b> Нажми <span class="kbd">F7</span> — это выключит шейдеры, они съедают больше всего.
       Дальше в настройках графики поставь дальность прорисовки 8–10 и частицы «Меньше».
-      Память для игры меняется в лаунчере: Установки → Magic Pack → Дополнительно → аргументы JVM
+      Память меняется в лаунчере: Установки → Magic Pack → Дополнительно → аргументы JVM
       (на 8 ГБ ОЗУ ставь <span class="kbd">-Xmx4G</span>).
       <br><br>
       <b>Другой лаунчер</b> (TLauncher, Prism и подобные): поставь NeoForge 21.1.250 для Minecraft 1.21.1
@@ -405,14 +537,14 @@ footer a{color:var(--paper-dim)}
 
 <section id="donat">
   <div class="wrap">
-    <div class="head"><span class="num">04</span><h2>Покровителям</h2><span class="rule"></span></div>
-    <p class="prose" style="margin-bottom:30px">
+    <div class="head rise"><span class="num">04</span><h2>Покровителям</h2><span class="rule wipe"></span></div>
+    <p class="prose rise d1" style="margin-bottom:32px">
       Сервер оплачивается из кармана и живёт, пока хватает на хостинг. Поддержать можно — и за это есть роль
       <b>Покровитель</b>. Сразу о главном: <b>она не даёт преимущества в игре</b>. Ни предметов, ни ступеней,
       ни ресурсов, ни боевых бонусов. Только видимость, удобство и приятные мелочи.
     </p>
     <div class="tiers">
-      <div class="tier gold">
+      <div class="tier gold rise d1">
         <h3>Покровитель</h3>
         <div class="price">Разовая поддержка · роль навсегда</div>
         <ul class="perks">
@@ -422,10 +554,10 @@ footer a{color:var(--paper-dim)}
           <li><b>Знамя с твоим именем</b> на стене поселения, которому ты покровительствуешь</li>
           <li><b>Имя на стеле</b> в столице — навсегда, даже если перестанешь играть</li>
           <li><b>Закрытый канал</b> в Discord и право голоса в опросах по серверу</li>
-          <li><b>Косметика:</b> свой цвет флага и фонарей у дома, набор частиц при телепорте</li>
+          <li><b>Косметика:</b> свой цвет флага и фонарей у дома, частицы при телепорте</li>
         </ul>
       </div>
-      <div class="tier">
+      <div class="tier no rise d2">
         <h3>Что не продаётся</h3>
         <div class="price">Принципиально</div>
         <ul class="perks">
@@ -433,18 +565,18 @@ footer a{color:var(--paper-dim)}
           <li>Ступени развития и очки навыков</li>
           <li>Жетоны выживших и репутация поселений</li>
           <li>Крутки колеса апгрейдера</li>
-          <li>Любые боевые бонусы, брони, урон, скорость</li>
+          <li>Любые боевые бонусы: броня, урон, скорость</li>
           <li>Право нарушать правила и обходить наказания</li>
         </ul>
-        <div class="honest" style="margin-top:22px">
+        <div class="honest" style="margin-top:24px">
           Если что-то из этого когда-нибудь появится в продаже — считай, что сервер кончился.
           Смысл сборки в том, что всё зарабатывается в мире.
         </div>
       </div>
     </div>
-    <div class="cta" style="margin-top:28px">
-      <a class="btn" id="donate" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">Поддержать сервер</a>
-      <a class="btn ghost" href="#svyaz">Написать в Discord</a>
+    <div class="cta rise d2" style="margin-top:30px; animation:none">
+      <a class="btn" id="donate" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener"><span>Поддержать сервер</span></a>
+      <a class="btn ghost" href="#svyaz"><span>Написать в Discord</span></a>
     </div>
     <p style="color:var(--paper-low); font-size:14px; margin-top:14px">
       После перевода напиши в Discord — роль выдаём вручную, обычно в тот же день.
@@ -454,8 +586,8 @@ footer a{color:var(--paper-dim)}
 
 <section id="svyaz">
   <div class="wrap">
-    <div class="head"><span class="num">05</span><h2>Связь</h2><span class="rule"></span></div>
-    <div class="links">
+    <div class="head rise"><span class="num">05</span><h2>Связь</h2><span class="rule wipe"></span></div>
+    <div class="links rise d1">
       <a class="link" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">
         <div class="who">Основное место</div>
         <h3>Discord</h3>
@@ -486,20 +618,19 @@ footer a{color:var(--paper-dim)}
 </footer>
 
 <script>
+"use strict";
+var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------------------------------------- копирование адреса */
 document.querySelectorAll(".copy").forEach(function (b) {
   b.addEventListener("click", function () {
-    var text = b.dataset.copy;
+    var text = b.dataset.copy, old = b.textContent;
     var done = function () {
-      var old = b.textContent;
-      b.textContent = "Скопировано";
-      b.classList.add("done");
+      b.textContent = "Скопировано"; b.classList.add("done");
       setTimeout(function () { b.textContent = old; b.classList.remove("done"); }, 1600);
     };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
-    } else {
-      fallback(text, done);
-    }
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    else fallback(text, done);
   });
 });
 function fallback(text, done) {
@@ -509,6 +640,136 @@ function fallback(text, done) {
   try { document.execCommand("copy"); done(); } catch (e) {}
   document.body.removeChild(t);
 }
+
+/* ---------------------------------------- появление блоков */
+var io = new IntersectionObserver(function (es) {
+  es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+}, { threshold: .18, rootMargin: "0px 0px -8% 0px" });
+document.querySelectorAll(".rise,.wipe,.step").forEach(function (el) { io.observe(el); });
+
+/* ---------------------------------------- счётчики */
+var cio = new IntersectionObserver(function (es) {
+  es.forEach(function (e) {
+    if (!e.isIntersecting) return;
+    cio.unobserve(e.target);
+    var el = e.target, to = +el.dataset.count, sfx = el.dataset.suffix || "", t0 = performance.now();
+    if (calm) { el.textContent = to + sfx; return; }
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / 900), v = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      el.textContent = v + sfx;
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  });
+}, { threshold: .6 });
+document.querySelectorAll("[data-count]").forEach(function (el) { cio.observe(el); });
+
+/* ---------------------------------------- шкала прогресса и активный раздел */
+var bar = document.getElementById("bar");
+var ids = ["mir", "chto", "start", "donat", "svyaz"];
+function onScroll() {
+  var h = document.documentElement;
+  var p = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight);
+  bar.style.width = (p * 100).toFixed(2) + "%";
+  var cur = "";
+  ids.forEach(function (id) {
+    var s = document.getElementById(id);
+    if (s && s.getBoundingClientRect().top < window.innerHeight * .42) cur = id;
+  });
+  document.querySelectorAll(".rail a").forEach(function (a) { a.classList.toggle("on", a.dataset.rail === cur); });
+  document.querySelectorAll(".nav a").forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + cur); });
+}
+addEventListener("scroll", onScroll, { passive: true });
+onScroll();
+
+/* ---------------------------------------- ступени разума орды */
+var MIND = [
+  ["T0", "Просто мертвецы", "Идут напролом, поодиночке, без выдумки. Пока ты слабее их — этого хватает."],
+  ["T1", "Слышат и приходят", "Реагируют на шум и свет у тебя за спиной. Ночью к костру приходят не случайно."],
+  ["T2", "Ждут своих", "Одиночка не лезет: стоит в темноте и ждёт стаю около двадцати секунд. Раненый отступает, когда здоровья остаётся треть."],
+  ["T3", "Выбирают жертву", "Переключаются на того, кто слабее или занят — ест, пьёт, копает. Стая, потерявшая троих за двадцать секунд, обращается в бегство."],
+  ["T4", "Давят числом", "Обходят с боков и приходят толпой. Слабые стены маленьких поселений для них больше не преграда."],
+  ["T5", "Тянут сквозь стену", "Эндермен выдёргивает тебя из-за укрытия в два блока толщиной. Прятаться за одним слоем камня перестаёт работать."],
+  ["T6", "Прочёсывают район", "Оторвался в темноте — не забудут. Расходятся по округе и ищут там, где видели тебя последний раз."],
+  ["T7", "Лунная ночь", "Полная орда по календарю. К этому моменту у тебя уже должны быть стены, союзники и школа магии."]
+];
+var ticks = document.getElementById("ticks"), body = document.getElementById("mindbody"), gauge = document.getElementById("gauge");
+MIND.forEach(function (m, i) {
+  var b = document.createElement("button");
+  b.className = "tick"; b.textContent = m[0]; b.type = "button";
+  b.addEventListener("click", function () { showMind(i); });
+  ticks.appendChild(b);
+});
+function showMind(i) {
+  var m = MIND[i];
+  Array.prototype.forEach.call(ticks.children, function (c, k) { c.classList.toggle("on", k === i); });
+  body.innerHTML = '<div class="swap"><h3>' + m[1] + "</h3><p>" + m[2] + "</p></div>";
+  gauge.style.width = ((i + 1) / MIND.length * 100) + "%";
+}
+showMind(2);
+
+/* ---------------------------------------- фон: угли и пепел */
+(function () {
+  if (calm) return;
+  var c = document.getElementById("ash"), x = c.getContext("2d"), w = 0, h = 0, dots = [], raf = 0;
+  function size() {
+    var d = Math.min(2, devicePixelRatio || 1);
+    w = c.width = innerWidth * d; h = c.height = innerHeight * d;
+    c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px";
+    x.setTransform(d, 0, 0, d, 0, 0);
+    var n = Math.round(Math.min(90, innerWidth / 14));
+    dots = [];
+    for (var i = 0; i < n; i++) dots.push(make(true));
+  }
+  function make(any) {
+    var ember = Math.random() < .34;
+    return {
+      x: Math.random() * innerWidth,
+      y: any ? Math.random() * innerHeight : innerHeight + 12,
+      r: ember ? .8 + Math.random() * 1.5 : .6 + Math.random() * 1.1,
+      v: (ember ? .22 : .10) + Math.random() * .36,
+      sw: .4 + Math.random() * 1.1,
+      ph: Math.random() * Math.PI * 2,
+      a: (ember ? .30 : .16) + Math.random() * .3,
+      e: ember
+    };
+  }
+  function frame(t) {
+    x.clearRect(0, 0, innerWidth, innerHeight);
+    for (var i = 0; i < dots.length; i++) {
+      var d = dots[i];
+      d.y -= d.v; d.ph += .012;
+      var px = d.x + Math.sin(d.ph) * d.sw * 8;
+      var flick = d.e ? (.7 + Math.sin(t / 220 + d.ph * 3) * .3) : 1;
+      x.beginPath();
+      x.arc(px, d.y, d.r, 0, 6.2832);
+      x.fillStyle = d.e ? "rgba(226,160,74," + (d.a * flick) + ")" : "rgba(180,170,152," + (d.a * .7) + ")";
+      x.fill();
+      if (d.e && d.r > 1.6) {
+        x.beginPath(); x.arc(px, d.y, d.r * 3.4, 0, 6.2832);
+        x.fillStyle = "rgba(226,160,74," + (d.a * .06 * flick) + ")"; x.fill();
+      }
+      if (d.y < -14) dots[i] = make(false);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function start() { if (!raf) raf = requestAnimationFrame(frame); }
+  function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+  addEventListener("resize", size);
+  document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+  size(); start();
+})();
+
+/* ---------------------------------------- лёгкий параллакс в шапке */
+(function () {
+  if (calm) return;
+  var hero = document.getElementById("hero");
+  var title = hero.querySelector("h1"), card = hero.querySelector(".card");
+  addEventListener("scroll", function () {
+    var y = Math.min(window.scrollY, innerHeight);
+    title.style.transform = "translateY(" + (y * .10) + "px)";
+    card.style.transform = "translateY(" + (y * -.05) + "px)";
+  }, { passive: true });
+})();
 </script>
 </body>
 </html>
