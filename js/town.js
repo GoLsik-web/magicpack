@@ -141,7 +141,9 @@ export class Town {
       });
       delay = 2.2;
     }
+    old.sunk = true;
     old.forEach((m, i) => this.sink(m, (up ? delay : 0) + (i / Math.max(1, old.length)) * 0.8));
+    this.later(this.wall);
     // дома
     // дома по кругу у костра, с промежутками; дверь смотрит на огонь; к зрителю (+z) — открытая площадь
     const angles = [-Math.PI / 2, -Math.PI / 2 - 0.95, -Math.PI / 2 + 0.95, Math.PI, 0, -Math.PI / 2 - 1.9, -Math.PI / 2 + 1.9];
@@ -151,13 +153,19 @@ export class Town {
       const cx = this.c.x + Math.cos(a) * 7.5, cz = this.c.z + Math.sin(a) * 7.5;
       const h = this.house(Math.round(cx - size / 2), Math.round(cz - size / 2), size, (i === 0 || i === 4) && s >= 3, 0.3 + i * 0.35);
       // тёплый фонарь у двери — дом «жилой», читается ночью
-      const lamp = new THREE.PointLight(0xffb060, 5, 9, 1.8);
+      this.later(h);
+      const lamp = new THREE.Object3D();
       lamp.position.set(cx, this.y(cx, cz) + 2.2, cz + size / 2 + 0.8);
       this.group.add(lamp);
+      this.w.lamp({ obj: lamp, color: 0xffb060, power: 5, distance: 9 });
       h.push(lamp);
       this.houses.push(h);
     }
-    while (this.houses.length > want) this.houses.pop().forEach((m, i) => this.sink(m, i * 0.004));
+    while (this.houses.length > want) {
+      const h = this.houses.pop();
+      h.sunk = true;
+      h.forEach((m, i) => this.sink(m, i * 0.004));
+    }
     // руны и маг
     this.runes.forEach((m) => this.sink(m, 0));
     this.runes = [];
@@ -167,7 +175,43 @@ export class Town {
     this.stage = s;
   }
 
+  /**
+   * Когда стройка набора блоков (дом, кольцо стены) закончилась — склеить его в несколько сеток по материалам:
+   * сотни отдельных блоков превращаются в пару отрисовок.
+   */
+  later(list) {
+    let end = 0;
+    for (const a of this.anim) if (list.includes(a.m)) end = Math.max(end, a.delay + a.dur);
+    (this.pending ||= []).push({ list, end: (this.now || 0) + end + 0.2 });
+  }
+
+  bakeSet(list) {
+    const meshes = list.filter((m) => m.isMesh);
+    if (!meshes.length) return;
+    const c = new THREE.Vector3();
+    meshes.forEach((m) => c.add(m.position));
+    c.multiplyScalar(1 / meshes.length);
+    const g = new THREE.Group();
+    g.position.copy(c);
+    this.group.add(g);
+    g.updateMatrixWorld(true);
+    for (const m of meshes) g.attach(m);
+    this.w.merge(g);
+    const rest = list.filter((m) => !m.isMesh);
+    list.length = 0;
+    list.push(g, ...rest);
+  }
+
   update(dt, t) {
+    this.now = t;
+    if (this.pending) for (let i = this.pending.length - 1; i >= 0; i--) {
+      const p = this.pending[i];
+      if (p.list.sunk) this.pending.splice(i, 1);
+      else if (t >= p.end && !this.anim.some((a) => p.list.includes(a.m))) {
+        this.bakeSet(p.list);
+        this.pending.splice(i, 1);
+      }
+    }
     for (let i = this.anim.length - 1; i >= 0; i--) {
       const a = this.anim[i];
       a.delay -= dt;

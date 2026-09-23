@@ -50,7 +50,7 @@ const camp = [];
     for (const sd of [-1, 1]) {
       const cloth = new THREE.Mesh(world._box ||= new THREE.BoxGeometry(1, 1, 1), skin('wool_red'));
       cloth.scale.set(2.3, 0.08, 3.6);
-      cloth.rotation.z = sd * 0.9;
+      cloth.rotation.z = -sd * 0.9;
       cloth.position.set(sd * 0.72, 0.9, 0);
       cloth.castShadow = cloth.receiveShadow = true;
       g.add(cloth);
@@ -76,9 +76,7 @@ const camp = [];
     const l = world.block(skin('lantern'), hero.x + dx, hero.h + 2, hero.z + dz);
     l.scale.setScalar(0.4);
     l.position.y += 0.05;
-    const light = new THREE.PointLight(0xffb060, 9, 12, 1.6);
-    light.position.copy(l.position);
-    world.scene.add(light);
+    world.lamp({ pos: l.position.clone(), color: 0xffb060, power: 9, distance: 12 });
   }
   // выжившие у огня: один ест, второй сторожит с факелом, маг держит обережный круг
   const people = [[-2, 3, 'survivor', 2.6, 'bread', 'eat'], [2.4, 3.2, 'survivor_b', -2.5, 'torch', 'idle'],

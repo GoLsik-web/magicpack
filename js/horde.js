@@ -252,10 +252,9 @@ export class Horde {
     this.w.scene.add(pts);
     this.fxList.push({ pts, v, life: kind === 'tp' ? 1.4 : 1.1, grav: glow ? (kind === 'tp' ? -1.5 : 1) : 9 });
     if (glow) {
-      const l = new THREE.PointLight(0xb070ff, 30, 10, 1.6);
-      l.position.copy(at).add(V(0, 1, 0));
-      this.w.scene.add(l);
-      this.fxList.push({ light: l, life: 0.5 });
+      const f = { life: 0.5 };
+      f.lamp = this.w.lamp({ pos: at.clone().add(V(0, 1, 0)), color: 0xb070ff, distance: 10, power: () => Math.max(0, f.life) * 60 });
+      this.fxList.push(f);
     }
   }
 
@@ -434,9 +433,8 @@ export class Horde {
         const st = this.add(new Stalker(), -4.5, -1, 999, this.stalkers);
         st.mob.root.visible = false;
         st.mob.root.rotation.y = Math.PI / 2;
-        const aura = new THREE.PointLight(0xa060ff, 6, 7, 1.8);    // вокруг сталкера — фиолетовый отсвет
-        aura.position.set(0, 2.2, 0.6);
-        st.mob.root.add(aura);
+        this.w.lamp({ obj: st.mob.root, offset: V(0, 2.2, 0.6), color: 0xa060ff, distance: 7,    // фиолетовый отсвет
+          power: () => (st.mob.root.visible ? 6 : 0) });
         for (let k = 0; k < 4; k++) this.walker(-9 - k * 1.5, -4 + k * 2.5, k);
         this.lantern(3, 2);
         break;
@@ -547,12 +545,10 @@ export class Horde {
     const l = this.block('lantern', dx, yb + 1, dz);
     l.scale.setScalar(0.4);
     l.position.y -= 0.3;
-    const light = new THREE.PointLight(0xffb060, 10, 14, 1.6);
-    light.position.copy(l.position);
-    light.castShadow = !this.w.mobile;
-    light.shadow.mapSize.set(256, 256);
-    this.group.add(light);
-    return light;
+    const anchor = new THREE.Object3D();
+    anchor.position.copy(l.position);
+    this.group.add(anchor);
+    return this.w.lamp({ obj: anchor, color: 0xffb060, power: 10, distance: 14 });
   }
 
   // ================================================================== ход сценки
@@ -562,10 +558,9 @@ export class Horde {
     for (let i = this.fxList.length - 1; i >= 0; i--) {
       const f = this.fxList[i];
       f.life -= dt;
-      if (f.light) {
-        f.light.intensity = Math.max(0, f.life) * 60;
+      if (f.lamp) {
         if (f.life <= 0) {
-          this.w.scene.remove(f.light);
+          f.lamp.remove();
           this.fxList.splice(i, 1);
         }
         continue;
@@ -980,8 +975,7 @@ export class Horde {
         m.cast = 2.2 + Math.random();
         const tgt = targets[Math.floor(Math.random() * Math.min(6, targets.length))];
         const orb = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 8), new THREE.MeshBasicMaterial({ color: 0xe6c2ff }));
-        const light = new THREE.PointLight(0xb070ff, 20, 10, 1.6);
-        orb.add(light);
+        this.w.lamp({ obj: orb, color: 0xb070ff, power: 20, distance: 10 });
         orb.position.set(m.pos.x, m.onWall + 3.4, m.pos.z);
         this.group.add(orb);
         this.bolts.push({ orb, from: orb.position.clone(), to: tgt.pos.clone(), k: 0 });

@@ -9,8 +9,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { tex, mat, WIND } from './models.js';
+import { tex, mat, WIND, LAMP } from './models.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ------------------------------------------------------------------ туман у земли: во всех материалах сцены
 // Обычный туман — по расстоянию; к нему добавлен стелющийся слой: гуще у земли и в низинах, редеет вверх.
@@ -42,6 +42,29 @@ THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
   #endif
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
 #endif`;
+
+// ------------------------------------------------------------------ блоки мира: что на гранях, прозрачен ли
+// Весь неподвижный мир (земля, лес, руины, частокол) хранится как воксели и «запекается» в сетку:
+// рисуются только видимые грани, в углах — затенение как в Майнкрафте (smooth lighting), по чанкам 32×32.
+const TYPES = {
+  grass: { top: 'grass_top', side: 'grass_side', bottom: 'dirt' },
+  log: { top: 'log_top', side: 'log', bump: 1.2 }, spruce_log: { top: 'log_top', side: 'spruce_log', bump: 1.2 },
+  burnt_log: { side: 'burnt_log', bump: 1.2 },
+  leaves: { trans: true, wind: 0.05 }, spruce_leaves: { trans: true, wind: 0.04 }, dead_leaves: { trans: true, wind: 0.05 },
+  ash: { glow: 0.25 }, sand: { bump: 0.6 }, mossy_cobble: { bump: 1.2 },
+  cobble: { bump: 1.2 }, bricks: { bump: 1.2 }, cracked_bricks: { bump: 1.2 },
+  dirt: {}, stone: {}, path: {}, gravel: {}, mud: {}, planks: {}, spruce_planks: {}, burnt_planks: {}, hay: {}, wool_red: {}, wool_white: {},
+};
+const vkey = (x, y, z) => ((x + 1024) * 2048 + (z + 1024)) * 256 + (y + 64);
+const FACES = [
+  { n: [1, 0, 0], c: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]] },
+  { n: [-1, 0, 0], c: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]] },
+  { n: [0, 1, 0], c: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]] },
+  { n: [0, -1, 0], c: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] },
+  { n: [0, 0, 1], c: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]] },
+  { n: [0, 0, -1], c: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]] },
+];
+const AO = [0.42, 0.6, 0.8, 1];
 
 // ------------------------------------------------------------------ шум для рельефа
 export function hash(x, z) {
@@ -126,7 +149,9 @@ export class World {
     const mobile = matchMedia('(max-width: 760px)').matches;
     this.mobile = mobile;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 1.75));
+    this.maxRatio = Math.min(devicePixelRatio, mobile ? 1.25 : 1.5);
+    this.ratio = this.maxRatio;
+    this.renderer.setPixelRatio(this.ratio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
     this.renderer.shadowMap.enabled = true;
@@ -138,6 +163,7 @@ export class World {
     this.clock = new THREE.Clock();
     this.updaters = [];
     this.lookName = 'night';
+    LAMP.add = (spec) => this.lamp(spec);
     this.cur = this.lookState(LOOKS.night);
 
     this.lights();
@@ -156,13 +182,6 @@ export class World {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    if (!mobile) {
-      // затенение в углах и стыках блоков — кубы перестают быть плоскими
-      this.gtao = new GTAOPass(this.scene, this.camera, innerWidth, innerHeight);
-      this.gtao.updateGtaoMaterial({ radius: 1.1, distanceExponent: 1.5, thickness: 1.4, scale: 1.25, samples: 14 });
-      this.gtao.blendIntensity = 1.0;
-      this.composer.addPass(this.gtao);
-    }
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.8, 0.6, 0.6);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -198,9 +217,10 @@ export class World {
 
   resize() {
     const w = innerWidth, h = innerHeight;
+    this.renderer.setPixelRatio(this.ratio);
+    this.composer.setPixelRatio(this.ratio);
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
-    if (this.gtao) this.gtao.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -211,14 +231,14 @@ export class World {
     this.scene.add(this.hemi);
     this.moon = new THREE.DirectionalLight(0xaab6ff, 1.9);
     this.moon.castShadow = true;
-    const S = this.mobile ? 1024 : 4096;
+    const S = this.mobile ? 1024 : 2048;
     this.moon.shadow.mapSize.set(S, S);
     this.moon.shadow.bias = -0.0003;
     this.moon.shadow.normalBias = 0.035;
     this.moon.shadow.radius = 4;
     const c = this.moon.shadow.camera;
-    c.left = c.bottom = -38;
-    c.right = c.top = 38;
+    c.left = c.bottom = -30;
+    c.right = c.top = 30;
     c.near = 1;
     c.far = 220;
     this.scene.add(this.moon);
@@ -324,8 +344,6 @@ export class World {
   // ================================================================== рельеф
   /** Верхний блок: трава, пепел, песок у воды, тропы, гравий, грязь; под ним земля и камень — инстансами. */
   terrain(N) {
-    const g = new THREE.BoxGeometry(1, 1, 1);
-    const side = (top, s) => [mat(s), mat(s), mat(top), mat('dirt'), mat(s), mat(s)];
     const lists = { grass: [], ash: [], sand: [], path: [], gravel: [], mud: [], dirt: [], stone: [], mossy: [] };
     const half = N / 2;
     const done = new Set();
@@ -374,30 +392,113 @@ export class World {
         return true;
       });
     }
-    const inst = (list, m, shadow = false) => {
-      if (!list.length) return null;
-      const im = new THREE.InstancedMesh(g, m, list.length);
-      const o = new THREE.Object3D();
-      list.forEach(([x, y, z], k) => {
-        o.position.set(x + 0.5, y + 0.5, z + 0.5);
-        o.updateMatrix();
-        im.setMatrixAt(k, o.matrix);
-      });
-      im.receiveShadow = true;
-      im.castShadow = shadow;
-      this.scene.add(im);
-      return im;
-    };
-    inst(lists.grass, side('grass_top', 'grass_side'), true);
-    inst(lists.ash, mat('ash', { glow: 0.25 }), true);
-    inst(lists.sand, mat('sand', { bump: 0.6 }), true);
-    inst(lists.path, mat('path'), true);
-    inst(lists.gravel, mat('gravel'), true);
-    inst(lists.mud, mat('mud'));
-    inst(lists.mossy, mat('mossy_cobble', { bump: 1.2 }), true);
-    inst(lists.dirt, mat('dirt'), true);
-    inst(lists.stone, mat('stone'), true);
-    this.surface = lists;
+    for (const k in lists) {
+      const type = k === 'mossy' ? 'mossy_cobble' : k;
+      for (const [x, y, z] of lists[k]) this.put(x, y, z, type);
+    }
+  }
+
+  /** Поставить блок в запекаемый мир. */
+  put(x, y, z, type) {
+    (this.vox ||= new Map()).set(vkey(x, y, z), type);
+    this.voxDirty = true;
+  }
+
+  /**
+   * Запекание: из вокселей — сетка видимых граней по чанкам и материалам. Грань, закрытая соседним
+   * непрозрачным блоком, не рисуется; в каждом углу грани — затенение по трём соседям (как smooth lighting).
+   */
+  bake() {
+    if (!this.vox || !this.voxDirty) return;
+    for (const m of this.bakedMeshes || []) {
+      this.scene.remove(m);
+      m.geometry.dispose();
+    }
+    this.bakedMeshes = [];
+    const V = this.vox, CH = 32;
+    const occ = (x, y, z) => (V.has(vkey(x, y, z)) ? 1 : 0);
+    const buckets = new Map();
+    for (const [k, type] of V) {
+      const y = (k % 256) - 64, zx = Math.floor(k / 256), z = (zx % 2048) - 1024, x = Math.floor(zx / 2048) - 1024;
+      const T = TYPES[type];
+      for (let f = 0; f < 6; f++) {
+        const F = FACES[f], [nx, ny, nz] = F.n;
+        const nb = V.get(vkey(x + nx, y + ny, z + nz));
+        if (nb !== undefined && (!TYPES[nb].trans || (T.trans && TYPES[nb].trans))) continue;
+        const tex = (ny > 0 ? T.top : ny < 0 ? T.bottom : T.side) || T.side || type;
+        const bkey = Math.floor(x / CH) + ',' + Math.floor(z / CH) + ',' + tex + ',' + type;
+        let b = buckets.get(bkey);
+        if (!b) buckets.set(bkey, (b = { tex, type, pos: [], nor: [], uv: [], col: [], idx: [] }));
+        const base = b.pos.length / 3;
+        const ao = [];
+        const axes = [0, 1, 2].filter((a) => F.n[a] === 0);
+        for (let v = 0; v < 4; v++) {
+          const c = F.c[v];
+          b.pos.push(x + c[0], y + c[1], z + c[2]);
+          b.nor.push(nx, ny, nz);
+          b.uv.push(v === 1 || v === 2 ? 1 : 0, v >= 2 ? 1 : 0);
+          const o = [x + nx, y + ny, z + nz];
+          const s1 = [...o], s2 = [...o];
+          s1[axes[0]] += c[axes[0]] ? 1 : -1;
+          s2[axes[1]] += c[axes[1]] ? 1 : -1;
+          const cr = [...s1];
+          cr[axes[1]] += c[axes[1]] ? 1 : -1;
+          const a1 = occ(...s1), a2 = occ(...s2);
+          const a = a1 && a2 ? 0 : 3 - a1 - a2 - occ(...cr);
+          ao.push(a);
+          const l = AO[a];
+          b.col.push(l, l, l);
+        }
+        // диагональ квадрата — по затенению, чтобы углы не «плыли»
+        if (ao[0] + ao[2] < ao[1] + ao[3]) b.idx.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
+        else b.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      }
+    }
+    for (const b of buckets.values()) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(b.col, 3));
+      g.setIndex(b.idx);
+      g.computeBoundingSphere();
+      const T = TYPES[b.type];
+      const opts = { vc: true };
+      if (T.bump) opts.bump = T.bump;
+      if (T.glow) opts.glow = T.glow;
+      if (T.wind) opts.wind = T.wind;
+      const m = new THREE.Mesh(g, mat(b.tex, opts));
+      m.castShadow = true;
+      m.receiveShadow = true;
+      m.matrixAutoUpdate = false;
+      this.scene.add(m);
+      this.bakedMeshes.push(m);
+    }
+    this.voxDirty = false;
+  }
+
+  /** Неподвижную группу мешей склеить по материалам: вместо десятков отрисовок — несколько. */
+  merge(group) {
+    group.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+    const byMat = new Map();
+    const drop = [];
+    group.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || o.material.transparent || o.material.isShaderMaterial) return;
+      const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+      if (!byMat.has(o.material)) byMat.set(o.material, []);
+      byMat.get(o.material).push(g);
+      drop.push(o);
+    });
+    for (const o of drop) o.parent.remove(o);
+    for (const [m, gs] of byMat) {
+      const one = new THREE.Mesh(mergeGeometries(gs), m);
+      one.castShadow = one.receiveShadow = true;
+      group.add(one);
+    }
+    return group;
   }
 
   inside(x, z) {
@@ -416,6 +517,10 @@ export class World {
   /** Много одинаковых блоков одной отрисовкой. list: [[x, y, z], ...] */
   blocks(m, list, parent = this.scene, shadow = true) {
     if (!list.length) return null;
+    if (parent === this.scene && typeof m === 'string' && TYPES[m]) {
+      for (const [x, y, z] of list) this.put(x, y, z, m);          // неподвижное — в запекаемый мир
+      return null;
+    }
     const im = new THREE.InstancedMesh(this._box ||= new THREE.BoxGeometry(1, 1, 1), typeof m === 'string' ? mat(m) : m, list.length);
     const o = new THREE.Object3D();
     list.forEach(([x, y, z], k) => {
@@ -578,12 +683,8 @@ export class World {
       else if (z < -20 || kind < 0.62) pine(x, z, y, k);
       else oak(x, z, y, k);
     }
-    this.blocks(mat('log', { bump: 1.2 }), logs);
-    this.blocks(mat('spruce_log', { bump: 1.2 }), spruce);
-    this.blocks(mat('burnt_log', { bump: 1.2 }), dead);
-    this.blocks(mat('leaves', { wind: 0.05 }), leaves);
-    this.blocks(mat('spruce_leaves', { wind: 0.04 }), needles);
-    this.blocks(mat('dead_leaves', { wind: 0.05 }), dryLeaves);
+    for (const [t, l] of [['log', logs], ['spruce_log', spruce], ['burnt_log', dead], ['leaves', leaves], ['spruce_leaves', needles], ['dead_leaves', dryLeaves]])
+      for (const [x, y, z] of l) this.put(x, y, z, t);
   }
 
   /** Силуэты руин города на горизонте: низ тонет в дымке, в редких окнах — огни выживших. */
@@ -698,7 +799,7 @@ export class World {
         }
       }
     }
-    for (const m in L) this.blocks(mat(m, { bump: 1.2 }), L[m]);
+    for (const m in L) for (const [x, y, z] of L[m]) this.put(x, y, z, m);
   }
 
   /** Телега: платформа из досок, колёса, оглобли; стоит на земле. */
@@ -734,6 +835,7 @@ export class World {
     part(log, 2.2, 0.1, 0.1, 2.2, 0.35, -0.5, -0.25);
     part(mat('hay'), 0.9, 0.6, 0.9, -0.5, 1.15, 0.2, 0.12);
     parent.add(g);
+    this.merge(g);
     return g;
   }
 
@@ -835,12 +937,8 @@ export class World {
       new THREE.MeshBasicMaterial({ color: 0xff5a1a, transparent: true, opacity: 0.85 }));
     coals.position.y = 0.03;
     group.add(coals);
-    const light = new THREE.PointLight(0xff8a3a, 34 * strength, 26, 1.5);
-    light.position.y = 1.2;
-    light.castShadow = !this.mobile;
-    light.shadow.bias = -0.002;
-    light.shadow.mapSize.set(512, 512);
-    group.add(light);
+    const light = this.lamp({ obj: group, offset: new THREE.Vector3(0, 1.2, 0), color: 0xff8a3a, distance: 26, shadow: true,
+      power: (t) => (30 + Math.sin(t * 13) * 5 + Math.sin(t * 4.7) * 4) * strength });
     const N = 60, pos = new Float32Array(N * 3), life = new Float32Array(N);
     for (let i = 0; i < N; i++) life[i] = Math.random();
     const eg = new THREE.BufferGeometry();
@@ -849,11 +947,11 @@ export class World {
       blending: THREE.AdditiveBlending, depthWrite: false }));
     group.add(sparks);
     parent.add(group);
+    this.merge(group);
     this.smoke(at.clone().add(new THREE.Vector3(0, 1.6 * strength, 0)), 0.6, 0x2a2630, parent);
     this.updaters.push((dt, t) => {
       if (!this.attached(group)) return false;
       uni.t.value = t;
-      light.intensity = (30 + Math.sin(t * 13) * 5 + Math.sin(t * 4.7) * 4) * strength;
       const a = eg.attributes.position;
       for (let i = 0; i < N; i++) {
         life[i] += dt * (0.35 + (i % 5) * 0.08);
@@ -1058,6 +1156,68 @@ export class World {
     }
   }
 
+  /**
+   * Огни сцены (костры, фонари, факелы, вспышки чар) — через постоянный набор из нескольких PointLight:
+   * каждый кадр им достаются ближайшие к камере источники. Число огней не меняется — шейдеры не
+   * пересобираются (раньше каждая вспышка давала рывок), а тень отбрасывает только ближайший костёр.
+   * spec: { obj | pos, offset, color, power (число или функция времени), distance, shadow }
+   */
+  lamp(spec) {
+    if (!this.pool) {
+      this.pool = [];
+      for (let i = 0; i < (this.mobile ? 5 : 9); i++) {
+        const l = new THREE.PointLight(0xffffff, 0, 10, 1.6);
+        if (i === 0 && !this.mobile) {
+          l.castShadow = true;
+          l.shadow.mapSize.set(512, 512);
+          l.shadow.bias = -0.003;
+          l.shadow.camera.far = 20;
+        }
+        this.scene.add(l);
+        this.pool.push(l);
+      }
+      this.lampList = new Set();
+      this.updaters.push((dt, t) => this.lampTick(t));
+    }
+    const L = { ...spec, at: new THREE.Vector3(), color: new THREE.Color(spec.color ?? 0xffffff) };
+    L.remove = () => this.lampList.delete(L);
+    this.lampList.add(L);
+    return L;
+  }
+
+  lampTick(t) {
+    const cam = this.camera.position, list = [];
+    for (const L of this.lampList) {
+      if (L.obj) {
+        if (!this.attached(L.obj)) {
+          this.lampList.delete(L);
+          continue;
+        }
+        L.obj.getWorldPosition(L.at);
+        if (L.offset) L.at.add(L.offset);
+      } else L.at.copy(L.pos);
+      L.d = L.at.distanceToSquared(cam) * (L.shadow ? 0.6 : 1);
+      L.i = typeof L.power === 'function' ? L.power(t) : L.power;
+      if (L.i > 0.01) list.push(L);
+    }
+    list.sort((a, b) => a.d - b.d);
+    const shadowL = list.find((L) => L.shadow && L.d < 45 * 45);
+    const rest = list.filter((L) => L !== shadowL);
+    this.pool.forEach((p, i) => {
+      const L = i === 0 && p.castShadow ? shadowL : rest[i - (p.castShadow ? 1 : 0)];
+      if (!L) {
+        p.intensity = 0;
+        p.visible = i === 0;
+        return;
+      }
+      p.visible = true;
+      p.position.copy(L.at);
+      p.color.copy(L.color);
+      p.intensity = L.i;
+      p.distance = L.distance ?? 12;
+    });
+  }
+
   /** Свет луны и его тени следуют за точкой, куда смотрит камера: тени чёткие в кадре. */
   follow(point) {
     this.focus.copy(point);
@@ -1073,9 +1233,26 @@ export class World {
 
   /** Кадр: все обновители; кто вернул false — больше не нужен. */
   tick(dt, t) {
+    if (this.voxDirty) this.bake();
     let gone = false;
     for (const u of this.updaters) if (u(dt, t) === false) (u.gone = true), (gone = true);
     if (gone) this.updaters = this.updaters.filter((u) => !u.gone);
+  }
+
+  /** Разрешение подстраивается: не успеваем 50+ кадров — чуть меньше пикселей, успеваем с запасом — обратно. */
+  adapt(dt) {
+    if (document.hidden) return;
+    this.ft = (this.ft ?? 1 / 60) * 0.95 + dt * 0.05;
+    this.adaptT = (this.adaptT || 0) + dt;
+    if (this.adaptT < 1.5) return;
+    let r = this.ratio;
+    if (this.ft > 1 / 45 && r > 0.75) r = Math.max(0.75, r - 0.15);
+    else if (this.ft < 1 / 70 && r < this.maxRatio) r = Math.min(this.maxRatio, r + 0.1);
+    if (r !== this.ratio) {
+      this.ratio = r;
+      this.adaptT = 0;
+      this.resize();
+    }
   }
 
   run() {
@@ -1083,6 +1260,7 @@ export class World {
       const dt = Math.min(0.05, this.clock.getDelta()), t = this.clock.elapsedTime;
       this.tick(dt, t);
       this.composer.render();
+      this.adapt(dt);
       this.frames = (this.frames || 0) + 1;
       requestAnimationFrame(loop);
     };
@@ -1113,34 +1291,43 @@ export function logo(world, text, at, scale = 1) {
   [...text].forEach((ch, i) => {
     FONT[ch].forEach((row, r) => [...row].forEach((bit, c) => {
       if (bit !== '1') return;
-      const glow = hash(i * 13 + r, c * 7) > 0.78;
-      const m = new THREE.Mesh(world._box ||= new THREE.BoxGeometry(1, 1, 1), glow ? crack : brick);
       const home = new THREE.Vector3(x0 + c - total / 2, 4 - r, 0);
-      m.userData = { home, from: home.clone().add(new THREE.Vector3((Math.random() - 0.5) * 40, 25 + Math.random() * 20, -20 - Math.random() * 20)),
-        delay: Math.random() * 1.4 + i * 0.08 };
-      m.position.copy(m.userData.from);
-      m.castShadow = true;
-      group.add(m);
-      cubes.push(m);
+      cubes.push({ glow: hash(i * 13 + r, c * 7) > 0.78, home,
+        from: home.clone().add(new THREE.Vector3((Math.random() - 0.5) * 40, 25 + Math.random() * 20, -20 - Math.random() * 20)),
+        delay: Math.random() * 1.4 + i * 0.08 });
     }));
     x0 += widths[i];
   });
+  const box = world._box ||= new THREE.BoxGeometry(1, 1, 1);
+  const sets = [false, true].map((glow) => {
+    const list = cubes.filter((c) => c.glow === glow);
+    const im = new THREE.InstancedMesh(box, glow ? crack : brick, list.length);
+    im.castShadow = true;
+    im.frustumCulled = false;
+    group.add(im);
+    return { im, list };
+  });
   world.scene.add(group);
-  const glow = new THREE.PointLight(0xb27cff, 40, 30, 1.4);
-  glow.position.set(0, 2, 6);
-  group.add(glow);
-  let t0 = null;
+  world.lamp({ obj: group, offset: new THREE.Vector3(0, 2, 6), color: 0xb27cff, power: 40, distance: 30 });
+  let t0 = null, settled = false;
+  const o = new THREE.Object3D();
   world.updaters.push((dt, t) => {
     if (t0 === null) t0 = t;
     const cam = world.camera, dist = cam.position.distanceTo(group.position);
+    if (dist > 90) return;                                   // надпись далеко — не трогаем
     const visible = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist * cam.aspect;
     group.scale.setScalar(scale * Math.min(1, (visible * 0.86) / (total + 1)));
-    for (const m of cubes) {
-      const k = Math.min(1, Math.max(0, (t - t0 - m.userData.delay) / 1.1));
-      const e = 1 - Math.pow(1 - k, 3);
-      m.position.lerpVectors(m.userData.from, m.userData.home, e);
-      m.rotation.set((1 - e) * 4, (1 - e) * 3, 0);
-      if (k >= 1) m.position.y = m.userData.home.y + Math.sin(t * 1.2 + m.userData.home.x * 0.4) * 0.06;
+    for (const { im, list } of sets) {
+      list.forEach((m, k) => {
+        const q = Math.min(1, Math.max(0, (t - t0 - m.delay) / 1.1));
+        const e = 1 - Math.pow(1 - q, 3);
+        o.position.lerpVectors(m.from, m.home, e);
+        o.rotation.set((1 - e) * 4, (1 - e) * 3, 0);
+        if (q >= 1) o.position.y = m.home.y + Math.sin(t * 1.2 + m.home.x * 0.4) * 0.06;
+        o.updateMatrix();
+        im.setMatrixAt(k, o.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
     }
   });
   return group;

@@ -24,6 +24,9 @@ export function tex(name, srgb = true) {
   return cache[key];
 }
 
+/** Огни: мир подставляет сюда функцию add(spec) — факел в руке светит через общий набор огней. */
+export const LAMP = { add: null };
+
 /** Общий ветер: время для колыхания листвы и травы (обновляет мир). */
 export const WIND = { time: { value: 0 }, strength: { value: 1 } };
 
@@ -61,6 +64,7 @@ export function mat(name, opts = {}) {
     metalness: 0,
     alphaTest: 0.5,
     envMapIntensity: opts.env ?? 0.3,
+    vertexColors: !!opts.vc,
     side: opts.side ?? (flat ? THREE.DoubleSide : THREE.FrontSide),
   });
   if (!flat) {
@@ -123,7 +127,7 @@ function mesh(geo, m, parent, pos) {
 }
 
 function joint(parent, pivot) {
-  const j = new THREE.Group();
+  const j = new THREE.Bone();
   j.position.set(...pivot);
   parent.add(j);
   return j;
@@ -235,6 +239,45 @@ class Rig {
     this.joints = [];
     this.tint = 0;
     this.mats = [];
+  }
+
+  /**
+   * Запекание модели: все коробки (кожа, второй слой, кристаллы) склеиваются в одну-две сетки со скелетом —
+   * вместо 30 отрисовок на моба одна-две. Суставы остаются теми же костями, анимация не меняется.
+   */
+  bakeSkin() {
+    this.root.updateMatrixWorld(true);
+    const bones = [];
+    this.body.traverse((o) => { if (o.isBone) bones.push(o); });
+    const inv = new THREE.Matrix4().copy(this.body.matrixWorld).invert();
+    const byMat = new Map(), drop = [];
+    this.body.traverse((o) => {
+      if (!o.isMesh || o.isSkinnedMesh) return;
+      let b = o.parent;
+      while (b && !b.isBone) b = b.parent;
+      if (!b) return;
+      const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+      const n = g.attributes.position.count, bi = bones.indexOf(b);
+      g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Array(n * 4).fill(0).map((_, i) => (i % 4 === 0 ? bi : 0)), 4));
+      g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(new Array(n * 4).fill(0).map((_, i) => (i % 4 === 0 ? 1 : 0)), 4));
+      if (!byMat.has(o.material)) byMat.set(o.material, []);
+      byMat.get(o.material).push(g);
+      drop.push(o);
+    });
+    for (const o of drop) o.parent.remove(o);
+    const skeleton = new THREE.Skeleton(bones);
+    this.skinned = [];
+    for (const [m, gs] of byMat) {
+      const sm = new THREE.SkinnedMesh(mergeGeometries(gs), m);
+      sm.castShadow = sm.receiveShadow = true;
+      sm.frustumCulled = false;
+      this.body.add(sm);
+      sm.bind(skeleton);
+      this.skinned.push(sm);
+    }
+    this.skeleton = skeleton;
   }
 
   /** Каждый сустав получает целевой поворот, а к нему идёт с инерцией — движение мягкое, «живое». */
@@ -352,21 +395,31 @@ export class Humanoid extends Rig {
     if (item) this.hold(item);
     this.phase = rng() * 10;
     this.idleSeed = rng() * 100;
+    this.bakeSkin();
   }
 
   hold(name) {
     this.hand.clear();
     this.item = name;
     if (!name) return;
-    const it = pixelItem(name);
-    // предмет в кулаке: рукоять в руке, лезвие вперёд-вверх (как в Майнкрафте от третьего лица)
-    it.rotation.set(0, Math.PI / 2, -Math.PI / 4 - 0.2);
-    it.position.set(0, 1, 2.2);
-    this.hand.add(it);
-    if (name === 'torch') {
-      this.torchLight = new THREE.PointLight(0xffa24a, 6, 12, 1.6);
-      this.torchLight.position.set(0, 6, 3);
-      this.hand.add(this.torchLight);
+    // предмет в кулаке: рукоять в руке, остриё вперёд-вверх (как в Майнкрафте от третьего лица).
+    // grip — пиксель рукояти, tip — куда смотрит остриё на картинке, lift — на сколько поднять над «вперёд»
+    const G = { sword: [2.5, 13.5, 45, 0.35], pickaxe: [4, 13.5, 45, 0.35], axe: [4, 13.5, 45, 0.35], staff: [3, 14, 45, 0.5],
+      torch: [7.5, 12.5, 90, 1.0], bread: [8, 8, 0, 0] }[name] || [8, 8, 0, 0];
+    const px = 0.7, it = pixelItem(name, px);
+    it.position.set(-(G[0] - 7.5) * px, -(7.5 - G[1]) * px, 0);
+    const pivot = new THREE.Group();
+    pivot.add(it);
+    pivot.rotation.set(0, -Math.PI / 2, G[3] - (G[2] * Math.PI) / 180);
+    pivot.position.set(0, -0.3, 0.6);
+    this.hand.add(pivot);
+    if (this.torchLamp) this.torchLamp.remove();
+    this.torchLamp = null;
+    if (name === 'torch' && LAMP.add) {
+      const anchor = new THREE.Object3D();
+      anchor.position.set(0, 6, 3);
+      this.hand.add(anchor);
+      this.torchLamp = LAMP.add({ obj: anchor, color: 0xffa24a, distance: 12, power: (t) => 6 + Math.sin(t * 17) * 0.8 + Math.sin(t * 7.3) * 0.8 });
     }
   }
 
@@ -539,7 +592,6 @@ export class Humanoid extends Rig {
     }
     this.settle(dt, dead ? 8 : zombie ? 10 : 14);
     this.flash(dt);
-    if (this.torchLight) this.torchLight.intensity = 6 + Math.sin(t * 17) * 0.8 + Math.sin(t * 7.3) * 0.8;
   }
 
   die(dir = 1) {
@@ -575,6 +627,7 @@ export class Stalker extends Rig {
     this.lleg = this.track(ll.upper); this.lknee = this.track(ll.lower);
     crystals(this.head, 3, 7, seeded(seed), 7);
     this.anger = 0;
+    this.bakeSkin();
   }
 
   animate(dt, t) {
@@ -645,6 +698,7 @@ export class Wolf extends Rig {
     this.tail = this.track(joint(this.chest, [0, 2, -6.5]));
     mesh(box(2, 8, 2, 9, 18, ...T), m, this.tail, [0, -4, 0]);
     crystals(this.chest, 2, 5, seeded(seed), 3);
+    this.bakeSkin();
   }
 
   animate(dt, t) {
@@ -709,6 +763,7 @@ export class Crow extends Rig {
     mesh(box(3, 1, 3, 18, 0, ...T), m, this.torso, [0, 0.5, -4]);
     this.flying = true;
     this.phase = seeded(seed)() * 10;
+    this.bakeSkin();
   }
 
   animate(dt, t) {
