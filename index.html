@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Magic Pack</title>
-<meta name="description" content="Русский сервер выживания с магией на Minecraft 1.21.1. Мёртвые поумнели, города в руинах, выжившие держатся за стенами.">
+<meta name="description" content="Русский сервер выживания с магией на Minecraft 1.21.1. Мёртвые поумнели, выжившие держатся за стенами, поселения растут у тебя на глазах.">
 <meta property="og:title" content="Magic Pack — сервер выживания 1.21.1">
-<meta property="og:description" content="Мёртвые поумнели. Города в руинах. Выжившие держатся за стенами.">
+<meta property="og:description" content="Мёртвые поумнели. Живые держатся. Орда учится вместе с тобой.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://golsik-web.github.io/magicpack/">
 <meta property="og:image" content="https://golsik-web.github.io/magicpack/og.png">
@@ -14,931 +14,144 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0a0910">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230b0a12'/><path d='M9 23V9h3l4 7 4-7h3v14h-3v-8l-4 7-4-7v8z' fill='%23b27cff'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230b0a12'/><path d='M9 23V9h3l4 7 4-7h3v14h-3v-8l-4 7-4-7v8z' fill='%23a98cf0'/></svg>">
-<style>
-:root{
-  --void:#0a0910;
-  --void-2:#120f1d;
-  --void-3:#191428;
-  --line:#2e2742;
-  --line-hi:#463a63;
-  --paper:#e7e3f2;
-  --dim:#a99fc4;
-  --low:#786e94;
-  --rune:#8a6bd8;
-  --rune-hi:#b49cf5;
-  --ember:#c9763a;
-  --ember-hi:#e59a55;
-  --maxw:1180px;
-  --ease:cubic-bezier(.22,.61,.36,1);
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{
-  margin:0; background:var(--void); color:var(--paper);
-  font-family:"Golos Text",system-ui,sans-serif; font-size:17px; line-height:1.62;
-  -webkit-font-smoothing:antialiased; overflow-x:hidden;
-}
-body.locked{overflow:hidden; height:100vh}
-a{color:inherit}
-h1,h2,h3{font-family:Oswald,"Golos Text",sans-serif; font-weight:500; margin:0}
-.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
-.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
-
-/* ============================================================ живой фон */
-#scene{position:fixed; inset:0; z-index:-2; pointer-events:none}
-.veil{
-  position:fixed; inset:0; z-index:-1; pointer-events:none;
-  background:
-    radial-gradient(120% 70% at 50% 0%, rgba(10,9,16,0) 40%, rgba(10,9,16,.72) 100%),
-    linear-gradient(180deg, rgba(10,9,16,.24), rgba(10,9,16,.66));
-}
-.grain{
-  position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.045;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-  animation:grain 7s steps(6) infinite;
-}
-@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-4%,3%)}40%{transform:translate(3%,-4%)}60%{transform:translate(-3%,-2%)}80%{transform:translate(4%,2%)}100%{transform:translate(0,0)}}
-
-/* ============================================================ интро */
-#gate{
-  position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center;
-  text-align:center; padding:24px;
-  background:radial-gradient(120% 80% at 50% 62%, rgba(10,9,16,0) 20%, rgba(10,9,16,.86) 100%);
-  transition:opacity 1.1s var(--ease), visibility 1.1s;
-}
-#gate.gone{opacity:0; visibility:hidden}
-.gate-in{max-width:760px; animation:gatefade 1.6s var(--ease) both .25s}
-@keyframes gatefade{from{opacity:0; transform:translateY(22px)}to{opacity:1; transform:none}}
-.gate-in .kicker{
-  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.34em; text-transform:uppercase;
-  color:var(--rune-hi); margin-bottom:22px;
-}
-.gate-in h1{
-  font-size:clamp(38px,7vw,78px); line-height:1.0; text-transform:uppercase; letter-spacing:.01em;
-}
-.gate-in h1 em{display:block; font-style:normal; color:var(--low)}
-.gate-in p{margin:22px auto 0; max-width:50ch; color:var(--dim); font-size:18px}
-.enter{
-  margin-top:34px; display:inline-flex; align-items:center; gap:14px; cursor:pointer;
-  background:none; border:0; color:var(--paper); font-family:Oswald,sans-serif;
-  font-size:17px; letter-spacing:.22em; text-transform:uppercase; padding:16px 4px;
-}
-.enter .ring{
-  position:relative; width:56px; height:56px; display:grid; place-items:center;
-  border:1px solid var(--line-hi); border-radius:50%; transition:.45s var(--ease);
-}
-.enter .ring::after{
-  content:""; position:absolute; inset:-9px; border:1px solid rgba(138,107,216,.34); border-radius:50%;
-  animation:halo 3.4s var(--ease) infinite;
-}
-@keyframes halo{0%{transform:scale(.86); opacity:.9}70%{transform:scale(1.18); opacity:0}100%{opacity:0}}
-.enter .ring i{width:9px; height:9px; border-right:1px solid var(--rune-hi); border-top:1px solid var(--rune-hi); transform:rotate(45deg) translate(-1px,1px)}
-.enter:hover .ring{border-color:var(--rune-hi); box-shadow:0 0 28px rgba(138,107,216,.3)}
-.enter:hover{color:var(--rune-hi)}
-.gate-foot{
-  position:absolute; left:0; right:0; bottom:26px; color:var(--low);
-  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase;
-}
-
-/* ============================================================ содержимое */
-#site{opacity:0; transition:opacity 1s var(--ease) .15s}
-#site.shown{opacity:1}
-
-.top{
-  position:sticky; top:0; z-index:50; background:rgba(10,9,16,.78);
-  backdrop-filter:blur(12px); border-bottom:1px solid var(--line);
-}
-.top .wrap{display:flex; align-items:center; gap:28px; height:60px}
-.brand{font-family:Oswald,sans-serif; font-size:20px; letter-spacing:.16em; text-transform:uppercase; text-decoration:none}
-.brand b{color:var(--rune-hi); font-weight:500}
-.nav{display:flex; gap:22px; margin-left:auto; font-size:13px; letter-spacing:.08em; text-transform:uppercase}
-.nav a{color:var(--low); text-decoration:none; padding:4px 0; position:relative; transition:color .3s var(--ease)}
-.nav a::after{content:""; position:absolute; left:0; right:100%; bottom:0; height:1px; background:var(--rune-hi); transition:right .35s var(--ease)}
-.nav a:hover,.nav a.on{color:var(--paper)}
-.nav a:hover::after,.nav a.on::after{right:0}
-.bar{position:absolute; left:0; bottom:-1px; height:1px; width:0; background:linear-gradient(90deg,var(--rune),var(--ember))}
-
-.rail{position:fixed; left:26px; top:50%; transform:translateY(-50%); z-index:40; display:flex; flex-direction:column; gap:15px}
-.rail a{display:flex; align-items:center; gap:10px; text-decoration:none; font-family:"JetBrains Mono",monospace;
-  font-size:11px; letter-spacing:.16em; color:var(--low); opacity:.5; transition:.3s var(--ease)}
-.rail a i{width:14px; height:1px; background:currentColor; transition:width .35s var(--ease)}
-.rail a span{opacity:0; transform:translateX(-6px); transition:.35s var(--ease)}
-.rail a:hover,.rail a.on{opacity:1; color:var(--rune-hi)}
-.rail a.on i{width:32px}
-.rail a:hover span,.rail a.on span{opacity:1; transform:none}
-@media (max-width:1400px){.rail{display:none}}
-
-.rise{opacity:0; transform:translateY(26px); transition:opacity .8s var(--ease), transform .8s var(--ease)}
-.rise.in{opacity:1; transform:none}
-.rise.d1{transition-delay:.08s}.rise.d2{transition-delay:.17s}.rise.d3{transition-delay:.26s}
-.wipe{clip-path:inset(0 100% 0 0); transition:clip-path 1.1s var(--ease)}
-.wipe.in{clip-path:inset(0 0 0 0)}
-
-/* ---- рваные границы между разделами вместо линеек */
-.tear{display:block; width:100%; height:38px; color:var(--void-2)}
-.tear svg{display:block; width:100%; height:100%}
-
-/* ---- шапка сайта */
-.hero{position:relative; min-height:82vh; display:flex; align-items:center}
-.hero .wrap{display:grid; grid-template-columns:1.18fr .82fr; gap:56px; align-items:center; padding:70px 24px; width:100%}
-.kick{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.26em; text-transform:uppercase; color:var(--rune-hi); margin-bottom:18px; display:flex; align-items:center; gap:12px}
-.kick::before{content:""; width:32px; height:1px; background:var(--rune)}
-.hero h1{font-size:clamp(42px,7vw,80px); line-height:.95; text-transform:uppercase}
-.hero h1 .ln{display:block; overflow:hidden}
-.hero h1 .ln>span{display:block; transform:translateY(105%); animation:drop 1s var(--ease) both}
-.hero h1 .ln:nth-child(1)>span{animation-delay:.1s}
-.hero h1 .ln:nth-child(2)>span{animation-delay:.22s}
-.hero h1 .ln:nth-child(3)>span{animation-delay:.34s; color:var(--low)}
-@keyframes drop{to{transform:none}}
-.lede{margin:24px 0 0; font-size:19px; max-width:34em; color:var(--dim)}
-.lede b{color:var(--paper); font-weight:500}
-.cta{display:flex; gap:12px; margin-top:26px; flex-wrap:wrap}
-
-.btn{
-  display:inline-block; text-decoration:none; padding:14px 22px; font-family:Oswald,sans-serif;
-  font-size:15px; letter-spacing:.12em; text-transform:uppercase; border:1px solid var(--rune);
-  color:#120f1d; background:var(--rune-hi); position:relative; overflow:hidden; transition:.35s var(--ease);
-  clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
-}
-.btn span{position:relative; z-index:1}
-.btn::after{content:""; position:absolute; inset:0; background:#cbb8ff; transform:translateY(101%); transition:transform .4s var(--ease)}
-.btn:hover::after{transform:none}
-.btn:hover{transform:translateY(-2px)}
-.btn.ghost{background:transparent; color:var(--paper); border-color:var(--line-hi)}
-.btn.ghost::after{background:rgba(180,156,245,.12)}
-.btn.warm{background:var(--ember-hi); border-color:var(--ember)}
-.btn.warm::after{background:#f0ae70}
-
-/* плашка адреса — со срезанными углами, не «коробка» */
-.plate{
-  position:relative; padding:24px 26px;
-  background:linear-gradient(160deg, rgba(25,20,40,.93), rgba(12,10,22,.88));
-  border:1px solid var(--line);
-  clip-path:polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
-}
-.plate .label{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--low); display:flex; align-items:center; gap:10px}
-.pulse{width:7px; height:7px; border-radius:50%; background:#7cc06a; box-shadow:0 0 0 0 rgba(124,192,106,.7); animation:beat 2.6s infinite}
-@keyframes beat{0%{box-shadow:0 0 0 0 rgba(124,192,106,.5)}70%{box-shadow:0 0 0 9px rgba(124,192,106,0)}100%{box-shadow:0 0 0 0 rgba(124,192,106,0)}}
-.ipline{display:flex; align-items:center; gap:10px; margin-top:10px}
-.ip{font-family:"JetBrains Mono",monospace; font-size:clamp(18px,2.3vw,25px); color:var(--rune-hi); word-break:break-all}
-.copy{border:1px solid var(--line); background:transparent; color:var(--dim); font-family:"JetBrains Mono",monospace;
-  font-size:11px; letter-spacing:.14em; text-transform:uppercase; padding:7px 11px; cursor:pointer; transition:.3s var(--ease)}
-.copy:hover{border-color:var(--rune); color:var(--rune-hi); transform:translateY(-1px)}
-.copy.done{border-color:#5f8a4a; color:#9dc57a}
-.meta{margin-top:18px; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:7px; font-size:14px}
-.meta div{display:flex; justify-content:space-between; gap:14px; color:var(--low)}
-.meta b{color:var(--dim); font-weight:500; font-family:"JetBrains Mono",monospace; font-size:13px; text-align:right}
-.stat b{font-size:24px; font-family:Oswald,sans-serif; color:var(--rune-hi)}
-
-/* ---- разделы */
-section{position:relative}
-section>.wrap{padding:92px 24px}
-.head{display:flex; align-items:baseline; gap:18px; margin-bottom:38px}
-.num{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--rune-hi); letter-spacing:.2em}
-.head h2{font-size:clamp(28px,4vw,42px); text-transform:uppercase}
-.head .rule{flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent); transform:translateY(-6px)}
-.prose{max-width:62ch; font-size:18px; color:var(--dim)}
-.prose p{margin:0 0 18px}
-.prose b{color:var(--paper); font-weight:500}
-.spread{display:grid; grid-template-columns:1.08fr .92fr; gap:54px; align-items:start}
-.pull{border-left:2px solid var(--rune); padding:2px 0 2px 20px; font-family:Oswald,sans-serif; font-size:23px; line-height:1.34}
-.pull small{display:block; margin-top:10px; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--low)}
-
-/* ---- ступени разума */
-.mind{position:relative; padding:30px 0 0}
-.mind .lab{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--low)}
-.ticks{display:flex; gap:6px; margin:16px 0 24px}
-.tick{flex:1; background:none; border:1px solid var(--line); color:var(--low); cursor:pointer;
-  font-family:"JetBrains Mono",monospace; font-size:12px; padding:10px 0; transition:.3s var(--ease); position:relative}
-.tick:hover{color:var(--paper); border-color:var(--line-hi)}
-.tick.on{color:#120f1d; background:var(--rune-hi); border-color:var(--rune-hi); font-weight:600}
-.mindbody{min-height:120px; max-width:60ch}
-.mindbody h3{font-size:22px; text-transform:uppercase; margin-bottom:8px; color:var(--rune-hi)}
-.mindbody p{margin:0; color:var(--dim)}
-.swap{animation:swapin .45s var(--ease) both}
-@keyframes swapin{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:none}}
-.gauge{height:2px; background:var(--line); margin-top:22px; position:relative; overflow:hidden}
-.gauge i{position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,var(--rune),var(--ember)); transition:width .5s var(--ease)}
-
-/* ---- механики: без рамок, на хайрлайнах и с разной высотой */
-.feats{display:grid; grid-template-columns:repeat(12,1fr); column-gap:34px; row-gap:44px; margin-top:44px}
-.feat{position:relative; padding-top:20px; border-top:1px solid var(--line); transition:border-color .4s var(--ease)}
-.feat:hover{border-top-color:var(--rune)}
-.feat:nth-child(1){grid-column:span 7}
-.feat:nth-child(2){grid-column:span 5}
-.feat:nth-child(3){grid-column:span 4}
-.feat:nth-child(4){grid-column:4/span 4}
-.feat:nth-child(5){grid-column:span 4}
-.feat:nth-child(6){grid-column:span 6}
-.feat:nth-child(7){grid-column:span 6}
-.feat h3{font-size:20px; text-transform:uppercase; margin-bottom:10px}
-.feat .tag{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ember-hi); display:block; margin-bottom:10px}
-.feat p{margin:0; color:var(--dim); font-size:16px}
-
-/* ---- шаги */
-.steps{display:grid; gap:34px; counter-reset:s}
-.step{display:grid; grid-template-columns:92px 1fr; gap:26px; align-items:start}
-.step::before{counter-increment:s; content:counter(s,decimal-leading-zero); font-family:Oswald,sans-serif;
-  font-size:46px; line-height:.9; color:var(--line-hi); transition:color .5s var(--ease)}
-.step.in::before{color:var(--rune-hi)}
-.step h3{font-size:19px; text-transform:uppercase; margin-bottom:8px}
-.step p{margin:0 0 10px; color:var(--dim); font-size:16px}
-.step p:last-child{margin-bottom:0}
-.kbd{font-family:"JetBrains Mono",monospace; font-size:13px; background:var(--void-3); border:1px solid var(--line); padding:2px 7px; color:var(--paper)}
-.note{border-left:2px solid var(--ember); padding:4px 0 4px 20px; color:var(--dim); font-size:16px}
-.note b{color:var(--paper); font-weight:500}
-
-/* ---- покровитель */
-.patron{display:grid; grid-template-columns:1.05fr .95fr; gap:54px; align-items:start}
-.perks{list-style:none; margin:0; padding:0; display:grid; gap:16px}
-.perks li{position:relative; padding-left:30px; color:var(--dim); font-size:17px}
-.perks li::before{content:""; position:absolute; left:0; top:.66em; width:14px; height:1px; background:var(--rune); transition:width .35s var(--ease)}
-.perks li:hover::before{width:22px; background:var(--rune-hi)}
-.perks li b{color:var(--paper); font-weight:500}
-.sigil{
-  position:relative; padding:34px 30px;
-  background:linear-gradient(165deg, rgba(138,107,216,.16), rgba(18,15,29,.7) 62%);
-  border:1px solid var(--line-hi);
-  clip-path:polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
-}
-.sigil h3{font-size:30px; text-transform:uppercase}
-.sigil .price{font-family:"JetBrains Mono",monospace; color:var(--rune-hi); font-size:13px; letter-spacing:.12em; margin:8px 0 22px}
-.sigil p{color:var(--dim); font-size:16px; margin:0 0 20px}
-
-/* ---- связь: компактная полоса */
-.links{display:flex; flex-wrap:wrap; gap:10px}
-.link{
-  display:flex; align-items:center; gap:12px; text-decoration:none; padding:12px 18px;
-  border:1px solid var(--line); color:var(--dim); font-size:15px; transition:.35s var(--ease);
-}
-.link b{color:var(--paper); font-family:Oswald,sans-serif; font-size:16px; letter-spacing:.06em; text-transform:uppercase; font-weight:500}
-.link small{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--low)}
-.link:hover{border-color:var(--rune); color:var(--paper); transform:translateY(-2px)}
-
-footer{padding:34px 0 52px; color:var(--low); font-size:13px}
-footer .wrap{display:flex; gap:18px; flex-wrap:wrap; align-items:center; justify-content:space-between}
-
-@media (max-width:900px){
-  .hero{min-height:auto}
-  .hero .wrap{grid-template-columns:1fr; gap:34px; padding:52px 24px 46px}
-  .spread,.patron{grid-template-columns:1fr; gap:32px}
-  .feat{grid-column:span 12 !important}
-  .nav{display:none}
-  section>.wrap{padding:60px 24px}
-  .step{grid-template-columns:56px 1fr; gap:16px}
-  .step::before{font-size:32px}
-  .ticks{flex-wrap:wrap}
-  .tick{flex:0 0 calc(25% - 5px)}
-}
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation:none !important; transition:none !important}
-  .rise{opacity:1; transform:none}
-  .wipe{clip-path:none}
-  .hero h1 .ln>span{transform:none}
-  #scene,.grain{display:none}
-}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 </head>
-<body class="locked">
-
+<body data-shot="hero">
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="veil" aria-hidden="true"></div>
-<div class="grain" aria-hidden="true"></div>
 
-<!-- ======================================================== интро -->
-<div id="gate">
-  <div class="gate-in">
-    <div class="kicker">Где-то в средней полосе · спустя годы</div>
-    <h1>Здесь больше<em>никого нет</em></h1>
-    <p>
-      Дороги заросли, города стоят пустые, и только ветер гоняет пепел между домами.
-      Кто-то ещё жив — за стенами, при свете фонарей. Остальное принадлежит тем, кто приходит ночью.
-    </p>
-    <button class="enter" id="enter" type="button">
-      <span class="ring"><i></i></span>
-      Войти в мир
-    </button>
+<nav class="bar">
+  <a class="brand" href="#hero">MAGIC PACK</a>
+  <div class="links">
+    <a href="#orda">Орда</a>
+    <a href="#posel">Поселения</a>
+    <a href="#start">Как зайти</a>
+    <a href="#donat">Покровитель</a>
   </div>
-  <div class="gate-foot">Minecraft 1.21.1 · NeoForge · русский сервер</div>
-</div>
-
-<!-- ======================================================== сайт -->
-<div id="site" aria-hidden="true">
-
-<nav class="rail" aria-label="Разделы">
-  <a href="#mir" data-rail="mir"><i></i><span>Мир</span></a>
-  <a href="#chto" data-rail="chto"><i></i><span>Механики</span></a>
-  <a href="#start" data-rail="start"><i></i><span>Как зайти</span></a>
-  <a href="#donat" data-rail="donat"><i></i><span>Покровитель</span></a>
+  <button class="ip" data-copy="zaluplay.gomc.fun">zaluplay.gomc.fun</button>
 </nav>
 
-<header class="top">
-  <div class="wrap">
-    <a class="brand" href="#"><b>Magic</b> Pack</a>
-    <nav class="nav">
-      <a href="#mir">Мир</a>
-      <a href="#chto">Механики</a>
-      <a href="#start">Как зайти</a>
-      <a href="#donat">Покровитель</a>
-      <a href="#svyaz">Связь</a>
-    </nav>
-  </div>
-  <i class="bar" id="bar"></i>
-</header>
-
-<div class="hero" id="hero" data-mood="world">
-  <div class="wrap">
-    <div>
-      <div class="kick">Выживание · магия · орда, которая учится</div>
-      <h1>
-        <span class="ln"><span>Мёртвые</span></span>
-        <span class="ln"><span>поумнели</span></span>
-        <span class="ln"><span>живые — держатся</span></span>
-      </h1>
-      <p class="lede">
-        Катастрофа была давно, и мир успел к ней привыкнуть. Выжившие живут за стенами и считают дни
-        до следующей лунной ночи. <b>Орда здесь растёт вместе с тобой:</b> чем ты сильнее,
-        тем умнее те, кто приходит за тобой в темноте.
-      </p>
+<main>
+  <!-- ================================================================ шапка -->
+  <section id="hero" data-shot="hero" class="hero">
+    <div class="card hero-card">
+      <p class="kicker">Minecraft 1.21.1 · NeoForge · русский сервер</p>
+      <h1>Мёртвые<br>поумнели.</h1>
+      <p class="lead">Чем ты сильнее — тем умнее те, кто приходит за тобой в темноте.</p>
       <div class="cta">
-        <a class="btn" href="#start"><span>Как начать играть</span></a>
-        <a class="btn ghost" href="#donat"><span>Стать покровителем</span></a>
+        <a class="btn main" href="#start">Войти в мир</a>
+        <a class="btn" href="#orda">Смотреть орду</a>
       </div>
     </div>
+    <div class="scroll" aria-hidden="true">листай</div>
+  </section>
 
-    <div class="plate">
-      <div class="label"><span class="pulse"></span> Адрес сервера</div>
-      <div class="ipline">
-        <span class="ip">zaluplay.gomc.fun</span>
-        <button class="copy" data-copy="zaluplay.gomc.fun">Копировать</button>
-      </div>
-      <div class="meta">
-        <div><span>Прямой адрес</span><b>213.152.43.89:25589</b></div>
-        <div><span>Версия</span><b>1.21.1 / NeoForge</b></div>
-        <div><span>Режим</span><b>Выживание, кооператив</b></div>
-        <div><span>Локация</span><b>Москва</b></div>
-      </div>
+  <!-- ================================================================ мир -->
+  <section id="mir" data-shot="world" class="split">
+    <div class="card">
+      <p class="num">01</p>
+      <h2>Годы после.</h2>
+      <ul class="beats">
+        <li><b>Города пусты.</b> Выжившие живут за стенами и считают дни до лунной ночи.</li>
+        <li><b>Всё связано.</b> Твоя сила, поведение мёртвых, жизнь поселений и цена вещей — один узел.</li>
+        <li><b>Две школы магии.</b> Боевая Iron's Spellbooks или созидательная Ars Nouveau — сначала попробуй обе.</li>
+        <li><b>Жетоны выживших.</b> Лечение, еда, починка, мана, заказы гильдии. Руда стоит столько, сколько её реально добывают.</li>
+      </ul>
     </div>
-  </div>
-</div>
+  </section>
 
-<div class="tear" aria-hidden="true"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 38 L0 22 L64 30 L138 14 L212 26 L288 10 L352 24 L436 12 L510 28 L590 16 L664 30 L742 18 L820 28 L900 12 L980 26 L1060 16 L1130 28 L1200 18 L1200 38 Z" fill="currentColor" opacity=".5"/></svg></div>
-
-<section id="mir" data-mood="world">
-  <div class="wrap">
-    <div class="head rise"><span class="num">01</span><h2>Что это за мир</h2><span class="rule wipe"></span></div>
-    <div class="spread">
-      <div class="prose rise d1">
-        <p>
-          Это не «ванилла с модами на магию». Всё связано в один узел: твоя сила, поведение мёртвых,
-          жизнь поселений и цена вещей.
-        </p>
-        <p>
-          Первые ночи ты будешь прятаться. Потом найдёшь первое поселение выживших — стены, ворота,
-          часовые на башнях, внутри работники со своими делами. Там продадут лечение за жетоны,
-          накормят горячим, дадут заказ от гильдии и расскажут слух о руинах, где что-то осталось.
-        </p>
-        <p>
-          Дальше ты выберешь школу магии, и мир начнёт отвечать. <b>Мёртвые перестанут лезть по одному.</b>
-          Раненые начнут отступать. Стая, потерявшая половину своих, побежит. А когда ты оторвёшься
-          от погони в темноте — они не забудут, а пойдут прочёсывать район.
-        </p>
-        <p>
-          Поселение, которому ты помогаешь, растёт на глазах: плетень сменяется частоколом, частокол —
-          каменной стеной с зубцами и рунами-фонарями. Появляются новые работники, ярмарка с редким товаром,
-          дань покровителю. А если орда проломит защиту — уровень упадёт, и это будет видно.
-        </p>
-      </div>
-      <div>
-        <div class="pull rise d2">
-          «Поодиночке не лезем. Ждём своих.»
-          <small>Правило орды, ступень 2</small>
-        </div>
-        <div class="plate rise d3" style="margin-top:32px">
-          <div class="label">Коротко</div>
-          <div class="meta" style="border-top:0; padding-top:12px">
-            <div class="stat"><span>Модов</span><b data-count="80" data-suffix="+">0</b></div>
-            <div class="stat"><span>Школы магии</span><b data-count="2">0</b></div>
-            <div class="stat"><span>Ступеней развития</span><b data-count="8">0</b></div>
-            <div class="stat"><span>Роли в поселениях</span><b data-count="11">0</b></div>
-            <div><span>Интерфейс</span><b>Полностью русский</b></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="tear" aria-hidden="true"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 0 L0 16 L70 26 L150 10 L226 24 L300 12 L380 26 L456 14 L540 28 L620 16 L700 26 L780 12 L860 24 L940 14 L1020 26 L1100 12 L1200 22 L1200 0 Z" fill="currentColor" opacity=".5"/></svg></div>
-
-<section id="chto" data-mood="horde">
-  <div class="wrap">
-    <div class="head rise"><span class="num">02</span><h2>Орда, которая учится</h2><span class="rule wipe"></span></div>
-
-    <div class="mind rise d1">
-      <div class="lab">Выбери ступень — и посмотри, что меняется за спиной</div>
-      <div class="ticks" id="ticks"></div>
+  <!-- ================================================================ орда -->
+  <section id="orda" data-shot="horde" class="stage">
+    <div class="card float">
+      <p class="num">02</p>
+      <h2>Орда, которая учится</h2>
+      <p class="sub">Жми ступень — сцена позади покажет, как они будут себя вести.</p>
+      <div class="ticks" id="ticks" role="tablist"></div>
       <div class="mindbody" id="mindbody"></div>
-      <div class="gauge"><i id="gauge" style="width:0"></i></div>
+      <p class="hint">Двигай мышью — они смотрят на тебя. На T1+ кликни по земле.</p>
     </div>
+  </section>
 
-    <div class="feats rise d2">
-      <div class="feat">
-        <span class="tag">Ночь</span>
-        <h3>Скрытность</h3>
-        <p>Темнота работает на тебя: заметность падает, от погони можно оторваться. Но каждый побег они запоминают — в следующий раз ищут дольше и шире.</p>
-      </div>
-      <div class="feat">
-        <span class="tag">Выбор</span>
-        <h3>Две школы магии</h3>
-        <p>Боевая Iron's Spellbooks или созидательная Ars Nouveau. Перед выбором дают попробовать обе и показывают честное сравнение.</p>
-      </div>
-      <div class="feat">
-        <span class="tag">Прогресс</span>
-        <h3>Своё древо</h3>
-        <p>Восемь ступеней в окне на <span class="kbd">J</span>. Виден текущий шаг и один следующий силуэтом, дальше туман.</p>
-      </div>
-      <div class="feat">
-        <span class="tag">Экономика</span>
-        <h3>Жетоны выживших</h3>
-        <p>Валюта мира: лечение, еда, починка, мана, заказы гильдии. Цена руды считается по реальной добыче.</p>
-      </div>
-      <div class="feat">
-        <span class="tag">Вещи</span>
-        <h3>Колесо апгрейдера</h3>
-        <p>Вещь превращается в предмет более высокой ступени. Потолок зависит от развитости поселения.</p>
-      </div>
-      <div class="feat">
-        <span class="tag">Люди</span>
-        <h3>Поселения живут</h3>
-        <p>Города, лагеря и хутора со стенами, воротами, башнями и полями. Внутри — одиннадцать ролей: лекарь, травник, повар, кузнец, маг, кладовщик, командир, гильдмейстер, торговец, староста, колесник.</p>
-      </div>
-      <div class="feat">
-        <span class="tag">Навигация</span>
-        <h3>Дом видно снаружи</h3>
-        <p>У дома каждой роли вывеска над дверью, флаг своего цвета на крыше и фонари у входа, а на карте — именная метка. Искать лекаря по всему городу не нужно.</p>
-      </div>
+  <!-- ================================================================ поселения -->
+  <section id="posel" data-shot="town" class="stage">
+    <div class="card float">
+      <p class="num">03</p>
+      <h2>Поселение растёт у тебя на глазах</h2>
+      <p class="sub">Берёшь его под опеку, зовёшь прораба — и смотришь, как жители строят.</p>
+      <div class="ticks wide" id="stages"></div>
+      <p class="mindbody plain" id="stagebody"></p>
+      <ul class="facts">
+        <li><b>Прораб</b> сам подходит и спрашивает: защиту или развитость?</li>
+        <li><b>Строители</b> кладут новую стену снаружи и разбирают старую.</li>
+        <li><b>Маги</b> обходят стену и накладывают руны.</li>
+        <li><b>У каждого работника свой дом</b> — лазарет, кузня, лавка, башня мага.</li>
+      </ul>
     </div>
-  </div>
-</section>
+  </section>
 
-<div class="tear" aria-hidden="true"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 38 L0 20 L80 28 L160 12 L240 26 L320 14 L400 28 L490 16 L570 26 L650 12 L730 24 L810 14 L900 28 L980 16 L1060 26 L1140 14 L1200 24 L1200 38 Z" fill="currentColor" opacity=".5"/></svg></div>
-
-<section id="start" data-mood="hearth">
-  <div class="wrap">
-    <div class="head rise"><span class="num">03</span><h2>Как зайти</h2><span class="rule wipe"></span></div>
-    <p class="prose rise d1" style="margin-bottom:40px">
-      Сборка ставится в официальный лаунчер Minecraft одним файлом. Пиратские лаунчеры тоже подойдут —
-      про них написано в конце.
-    </p>
-    <div class="steps">
-      <div class="step rise">
-        <div>
-          <h3>Поставь Java 21</h3>
-          <p>Без неё сборка не запустится. Бери Temurin 21 и при установке отметь галочку <b>Add to PATH</b>.</p>
-          <p><a class="btn ghost" href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener"><span>Скачать Java 21</span></a></p>
-        </div>
-      </div>
-      <div class="step rise d1">
-        <div>
-          <h3>Скачай сборку и запусти «Установить.bat»</h3>
-          <p>
-            Сначала запусти официальный лаунчер Minecraft один раз и закрой — иначе установщику некуда ставить.
-            Потом распакуй архив куда угодно и запусти <span class="kbd">Установить.bat</span>:
-            он сам поставит NeoForge, скопирует сборку и добавит профиль <b>Magic Pack</b> в лаунчер.
-          </p>
-          <p><a class="btn" href="https://github.com/GoLsik-web/magicpack/releases/latest" target="_blank" rel="noopener"><span>Скачать сборку</span></a></p>
-        </div>
-      </div>
-      <div class="step rise d2">
-        <div>
-          <h3>Зайди на сервер</h3>
-          <p>Открой лаунчер, выбери профиль <b>Magic Pack</b>, нажми «Играть». В игре — «Сетевая игра» → «Добавить сервер» → адрес:</p>
-          <div class="ipline">
-            <span class="ip" style="font-size:20px">zaluplay.gomc.fun</span>
-            <button class="copy" data-copy="zaluplay.gomc.fun">Копировать</button>
-          </div>
-          <p style="margin-top:14px">Не находится — вставь прямой: <span class="kbd">213.152.43.89:25589</span></p>
-        </div>
-      </div>
+  <!-- ================================================================ как зайти -->
+  <section id="start" data-shot="join" class="split right">
+    <div class="card">
+      <p class="num">04</p>
+      <h2>Как зайти</h2>
+      <ol class="steps">
+        <li><b>Java 21.</b> Бери Temurin 21, при установке отметь «Add to PATH».
+          <a class="btn small" href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Скачать Java 21</a></li>
+        <li><b>Сборка.</b> Запусти официальный лаунчер один раз и закрой. Распакуй архив и запусти «Установить.bat» —
+          он поставит NeoForge, скопирует сборку и добавит профиль Magic Pack.
+          <a class="btn small" href="https://github.com/GoLsik-web/magicpack/releases/latest" target="_blank" rel="noopener">Скачать сборку</a></li>
+        <li><b>Сервер.</b> Профиль Magic Pack → «Играть» → «Сетевая игра» → «Добавить сервер».
+          <span class="addr"><button class="copy" data-copy="zaluplay.gomc.fun">zaluplay.gomc.fun</button>
+          <button class="copy dim" data-copy="213.152.43.89:25589">213.152.43.89:25589</button></span></li>
+      </ol>
+      <p class="note"><b>Тормозит?</b> F7 выключает шейдеры. Дальность 8–10, частицы «Меньше». На 8 ГБ ОЗУ ставь <code>-Xmx4G</code>.
+        Другой лаунчер (TLauncher, Prism): поставь NeoForge 21.1.250 и скопируй папку «minecraft» из архива в профиль.</p>
     </div>
+  </section>
 
-    <div class="note rise d1" style="margin-top:38px">
-      <b>Если тормозит.</b> <span class="kbd">F7</span> выключает шейдеры — они съедают больше всего.
-      Дальше поставь дальность прорисовки 8–10 и частицы «Меньше». Память меняется в лаунчере:
-      Установки → Magic Pack → Дополнительно → аргументы JVM (на 8 ГБ ОЗУ ставь <span class="kbd">-Xmx4G</span>).
-      <br><br>
-      <b>Другой лаунчер</b> (TLauncher, Prism и подобные): поставь NeoForge 21.1.250 для Minecraft 1.21.1
-      и скопируй содержимое папки «minecraft» из архива в папку профиля.
+  <!-- ================================================================ покровитель -->
+  <section id="donat" data-shot="patron" class="split">
+    <div class="card">
+      <p class="num">05</p>
+      <h2>Покровитель</h2>
+      <p class="sub">Сервер держится на тех, кто в него верит. Оставь след в мире.</p>
+      <ul class="facts two">
+        <li><b>Цветное имя</b> в чате и метка в списке игроков</li>
+        <li><b>Титул</b> на выбор из титулов гильдии</li>
+        <li><b>Приоритетный вход</b>, когда сервер забит</li>
+        <li><b>Знамя с твоим именем</b> на стене твоего поселения</li>
+        <li><b>Имя на стеле</b> в столице — навсегда</li>
+        <li><b>Закрытый канал</b> в Discord и голос в опросах</li>
+      </ul>
+      <a class="btn main" id="donate" href="https://www.donationalerts.com/r/rain09k" target="_blank" rel="noopener">Поддержать через DonationAlerts</a>
+      <p class="note">В сообщении к переводу укажи ник в игре. Роль выдаём вручную, обычно в тот же день — напиши в Discord.</p>
     </div>
-  </div>
-</section>
+  </section>
 
-<div class="tear" aria-hidden="true"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 0 L0 18 L76 28 L156 12 L236 24 L316 14 L400 26 L480 12 L560 24 L648 16 L728 28 L808 14 L888 24 L968 12 L1048 26 L1128 16 L1200 26 L1200 0 Z" fill="currentColor" opacity=".5"/></svg></div>
-
-<section id="donat" data-mood="patron">
-  <div class="wrap">
-    <div class="head rise"><span class="num">04</span><h2>Покровитель</h2><span class="rule wipe"></span></div>
-    <div class="patron">
-      <div class="rise d1">
-        <p class="prose" style="margin-bottom:26px">
-          Сервер держится на тех, кто в него верит. Стать <b>покровителем</b> — это оставить след в мире:
-          твоё имя будет видно в чате, на стене поселения и на стеле в столице, даже когда ты не в игре.
-        </p>
-        <ul class="perks">
-          <li><b>Цветное имя</b> в чате и отдельная метка в списке игроков</li>
-          <li><b>Титул на выбор</b> из титулов гильдии</li>
-          <li><b>Приоритетный вход</b>, когда сервер забит под завязку</li>
-          <li><b>Знамя с твоим именем</b> на стене поселения, которому ты покровительствуешь</li>
-          <li><b>Имя на стеле</b> в столице — навсегда</li>
-          <li><b>Закрытый канал</b> в Discord и право голоса в опросах по серверу</li>
-          <li><b>Свой цвет</b> флага и фонарей у дома, частицы при телепорте</li>
-        </ul>
+  <!-- ================================================================ связь -->
+  <section id="svyaz" data-shot="quiet" class="end">
+    <div class="card center">
+      <h2>До встречи за стеной.</h2>
+      <div class="social">
+        <a class="btn" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">Discord</a>
+        <a class="btn" href="https://www.twitch.tv/rain09k" target="_blank" rel="noopener">Twitch</a>
+        <a class="btn" href="https://t.me/mouds9" target="_blank" rel="noopener">Telegram</a>
       </div>
-      <div class="sigil rise d2">
-        <h3>Оставить след</h3>
-        <div class="price">Разовая поддержка · роль навсегда</div>
-        <p>
-          Поддержать можно через DonationAlerts. В сообщении к переводу укажи свой ник в игре —
-          роль выдаём вручную, обычно в тот же день.
-        </p>
-        <a class="btn warm" id="donate" href="https://www.donationalerts.com/r/rain09k" target="_blank" rel="noopener"><span>Поддержать через DonationAlerts</span></a>
-        <p style="margin:18px 0 0; font-size:14px; color:var(--low)">
-          После перевода напиши в Discord — там же ответят на любые вопросы.
-        </p>
-      </div>
+      <p class="foot">Magic Pack · Minecraft 1.21.1 · NeoForge 21.1.250 · вся графика на странице — сцена в реальном времени</p>
     </div>
-  </div>
-</section>
+  </section>
+</main>
 
-<section id="svyaz" data-mood="quiet">
-  <div class="wrap" style="padding-top:56px; padding-bottom:56px">
-    <div class="head rise" style="margin-bottom:22px"><span class="num">05</span><h2>Связь</h2><span class="rule wipe"></span></div>
-    <div class="links rise d1">
-      <a class="link" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener"><small>Основное</small> <b>Discord</b></a>
-      <a class="link" href="https://www.twitch.tv/rain09k" target="_blank" rel="noopener"><small>Стримы</small> <b>Twitch</b></a>
-      <a class="link" href="https://t.me/mouds9" target="_blank" rel="noopener"><small>Анонсы</small> <b>Telegram</b></a>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="wrap">
-    <div>Magic Pack · Minecraft 1.21.1 · NeoForge 21.1.250</div>
-    <div class="mono">zaluplay.gomc.fun</div>
-  </div>
-</footer>
-</div>
-
-<script>
-"use strict";
-var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/* ==================================================== живой фон */
-var Scene = (function () {
-  var c = document.getElementById("scene"), x = c && c.getContext("2d");
-  if (!c || !x) return { set: function () {}, tier: function () {} };
-
-  var W = 0, H = 0, dpr = 1, raf = 0, t0 = performance.now();
-  var dots = [], town = [], figs = [];
-
-  // текущее и целевое состояние сцены — всё плавно перетекает
-  var cur = { fog:.55, ash:.5, warm:.25, moon:.5, town:.5, figs:0, glow:0, posture:0, lamp:.2, rune:.1, zoom:1 };
-  var tgt = Object.assign({}, cur);
-
-  var MOODS = {
-    intro:  { fog:.95, ash:.55, warm:.10, moon:.95, town:1.0, figs:.12, glow:.15, posture:0,  lamp:.35, rune:.05, zoom:1.16 },
-    world:  { fog:.55, ash:.50, warm:.22, moon:.60, town:.75, figs:.10, glow:.10, posture:.1, lamp:.45, rune:.10, zoom:1.0 },
-    horde:  { fog:.75, ash:.65, warm:.10, moon:.80, town:.45, figs:.35, glow:.35, posture:.2, lamp:.15, rune:.25, zoom:1.04 },
-    hearth: { fog:.35, ash:.35, warm:.65, moon:.35, town:.85, figs:.03, glow:.05, posture:0,  lamp:.95, rune:.08, zoom:1.0 },
-    patron: { fog:.5,  ash:.40, warm:.30, moon:.55, town:.7,  figs:.05, glow:.08, posture:0,  lamp:.6,  rune:.85, zoom:1.02 },
-    quiet:  { fog:.3,  ash:.25, warm:.20, moon:.3,  town:.5,  figs:.02, glow:.03, posture:0,  lamp:.3,  rune:.10, zoom:1.0 }
-  };
-
-  function rnd(s){ var v = Math.sin(s * 127.1) * 43758.5453; return v - Math.floor(v); }
-
-  function build() {
-    dpr = Math.min(2, window.devicePixelRatio || 1);
-    W = innerWidth; H = innerHeight;
-    c.width = W * dpr; c.height = H * dpr;
-    c.style.width = W + "px"; c.style.height = H + "px";
-    x.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // силуэт разрушенного посёлка на горизонте
-    town = [];
-    var px = -40, i = 0;
-    while (px < W + 60) {
-      var w = 34 + rnd(i * 3.1) * 78, h = 26 + rnd(i * 7.7) * 92;
-      var broken = rnd(i * 11.3) < .45;
-      town.push({ x: px, w: w, h: h, roof: rnd(i * 5.5) > .35, broken: broken, lit: rnd(i * 9.1) < .3 });
-      px += w + 8 + rnd(i * 2.3) * 34; i++;
-    }
-    // фигуры на горизонте
-    figs = [];
-    for (var k = 0; k < 26; k++) {
-      figs.push({ x: rnd(k * 17.7) * W, s: .7 + rnd(k * 4.3) * .7, ph: rnd(k * 8.9) * 6.28, sp: .12 + rnd(k * 6.1) * .5 });
-    }
-    // пепел и угли
-    dots = [];
-    var n = Math.round(Math.min(120, W / 11));
-    for (var j = 0; j < n; j++) dots.push(spark(true));
-  }
-
-  function spark(any) {
-    return {
-      x: Math.random() * W,
-      y: any ? Math.random() * H : H + 12,
-      r: .55 + Math.random() * 1.6,
-      v: .08 + Math.random() * .42,
-      sw: .3 + Math.random() * 1.2,
-      ph: Math.random() * 6.28,
-      a: .12 + Math.random() * .36,
-      k: Math.random()
-    };
-  }
-
-  function lerp(a, b, k) { return a + (b - a) * k; }
-
-  function horizon() { return H * .74; }
-
-  function drawMoon(t) {
-    if (cur.moon < .02) return;
-    var mx = W * .78, my = H * .2, r = Math.min(W, H) * .07;
-    var g = x.createRadialGradient(mx, my, r * .2, mx, my, r * 6);
-    g.addColorStop(0, "rgba(198,186,232," + (.30 * cur.moon) + ")");
-    g.addColorStop(.35, "rgba(138,107,216," + (.10 * cur.moon) + ")");
-    g.addColorStop(1, "rgba(138,107,216,0)");
-    x.fillStyle = g; x.beginPath(); x.arc(mx, my, r * 6, 0, 6.2832); x.fill();
-    x.fillStyle = "rgba(226,220,246," + (.55 * cur.moon) + ")";
-    x.beginPath(); x.arc(mx, my, r, 0, 6.2832); x.fill();
-  }
-
-  function drawTown(t) {
-    if (cur.town < .02) return;
-    var base = horizon(), al = cur.town;
-    x.save();
-    x.translate(W / 2, base); x.scale(cur.zoom, cur.zoom); x.translate(-W / 2, -base);
-    for (var i = 0; i < town.length; i++) {
-      var b = town[i], h = b.h * (.6 + al * .5);
-      x.fillStyle = "rgba(6,5,11," + (.62 + al * .3) + ")";
-      x.beginPath();
-      x.moveTo(b.x, base);
-      x.lineTo(b.x, base - h);
-      if (b.roof) { x.lineTo(b.x + b.w / 2, base - h - b.w * .28); x.lineTo(b.x + b.w, base - h); }
-      else if (b.broken) { x.lineTo(b.x + b.w * .35, base - h * .82); x.lineTo(b.x + b.w * .6, base - h); x.lineTo(b.x + b.w, base - h * .7); }
-      else x.lineTo(b.x + b.w, base - h);
-      x.lineTo(b.x + b.w, base); x.closePath(); x.fill();
-      // окно с огнём
-      if (b.lit && cur.lamp > .05) {
-        var fl = .6 + Math.sin(t / 300 + i) * .4;
-        x.fillStyle = "rgba(230,164,92," + (.5 * cur.lamp * fl) + ")";
-        x.fillRect(b.x + b.w * .42, base - h * .55, 4, 5);
-        var g2 = x.createRadialGradient(b.x + b.w * .44, base - h * .53, 0, b.x + b.w * .44, base - h * .53, 26);
-        g2.addColorStop(0, "rgba(230,164,92," + (.16 * cur.lamp * fl) + ")");
-        g2.addColorStop(1, "rgba(230,164,92,0)");
-        x.fillStyle = g2; x.fillRect(b.x + b.w * .44 - 26, base - h * .53 - 26, 52, 52);
-      }
-    }
-    x.restore();
-  }
-
-  function drawFigs(t) {
-    if (cur.figs < .02) return;
-    var base = horizon() + 6;
-    var n = Math.round(figs.length * cur.figs);
-    for (var i = 0; i < n; i++) {
-      var f = figs[i];
-      var sway = Math.sin(t / 900 * f.sp + f.ph) * (5 - cur.posture * 4);
-      var hgt = (20 + f.s * 16) * (.82 + cur.posture * .3);
-      var fx = f.x + sway, fy = base;
-      x.fillStyle = "rgba(4,3,8,.9)";
-      // тело
-      x.fillRect(fx - 2.6 * f.s, fy - hgt, 5.2 * f.s, hgt);
-      // голова
-      x.beginPath(); x.arc(fx, fy - hgt - 3.4 * f.s, 3.1 * f.s, 0, 6.2832); x.fill();
-      // руки: на низких ступенях висят, на высоких подняты
-      var arm = cur.posture * 6;
-      x.fillRect(fx - 5.6 * f.s, fy - hgt + 3 - arm, 3 * f.s, hgt * .45);
-      x.fillRect(fx + 2.6 * f.s, fy - hgt + 3 - arm, 3 * f.s, hgt * .45);
-      // глаза
-      if (cur.glow > .03) {
-        var fl = .7 + Math.sin(t / 220 + f.ph * 3) * .3;
-        x.fillStyle = "rgba(196,120,255," + (cur.glow * fl) + ")";
-        x.fillRect(fx - 2.1 * f.s, fy - hgt - 4.4 * f.s, 1.5 * f.s, 1.5 * f.s);
-        x.fillRect(fx + .7 * f.s, fy - hgt - 4.4 * f.s, 1.5 * f.s, 1.5 * f.s);
-        var g3 = x.createRadialGradient(fx, fy - hgt - 4, 0, fx, fy - hgt - 4, 22 * f.s);
-        g3.addColorStop(0, "rgba(168,96,255," + (cur.glow * .22 * fl) + ")");
-        g3.addColorStop(1, "rgba(168,96,255,0)");
-        x.fillStyle = g3; x.fillRect(fx - 22 * f.s, fy - hgt - 26, 44 * f.s, 44);
-      }
-    }
-  }
-
-  function drawFog(t) {
-    if (cur.fog < .02) return;
-    var base = horizon();
-    for (var i = 0; i < 3; i++) {
-      var y = base - 30 + i * 26 + Math.sin(t / (5200 + i * 1700)) * 12;
-      var g = x.createLinearGradient(0, y - 60, 0, y + 60);
-      g.addColorStop(0, "rgba(22,18,34,0)");
-      g.addColorStop(.5, "rgba(26,21,40," + (.30 * cur.fog) + ")");
-      g.addColorStop(1, "rgba(22,18,34,0)");
-      x.fillStyle = g; x.fillRect(0, y - 60, W, 120);
-    }
-  }
-
-  function drawDots(t) {
-    for (var i = 0; i < dots.length; i++) {
-      var d = dots[i];
-      d.y -= d.v * (.5 + cur.ash); d.ph += .012;
-      var px = d.x + Math.sin(d.ph) * d.sw * 9;
-      var warm = d.k < cur.warm, runic = !warm && d.k > 1 - cur.rune * .6;
-      var fl = .75 + Math.sin(t / 240 + d.ph * 3) * .25;
-      x.beginPath(); x.arc(px, d.y, d.r, 0, 6.2832);
-      x.fillStyle = warm ? "rgba(230,160,86," + (d.a * fl) + ")"
-                  : runic ? "rgba(170,140,246," + (d.a * fl) + ")"
-                          : "rgba(168,160,190," + (d.a * .55) + ")";
-      x.fill();
-      if ((warm || runic) && d.r > 1.5) {
-        var g = x.createRadialGradient(px, d.y, 0, px, d.y, d.r * 6);
-        g.addColorStop(0, (warm ? "rgba(230,160,86," : "rgba(170,140,246,") + (d.a * .08 * fl) + ")");
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        x.fillStyle = g; x.fillRect(px - d.r * 6, d.y - d.r * 6, d.r * 12, d.r * 12);
-      }
-      if (d.y < -16) dots[i] = spark(false);
-    }
-  }
-
-  function frame(t) {
-    var k = .045;
-    for (var p in tgt) cur[p] = lerp(cur[p], tgt[p], k);
-    x.clearRect(0, 0, W, H);
-    drawMoon(t); drawTown(t); drawFigs(t); drawFog(t); drawDots(t);
-    raf = requestAnimationFrame(frame);
-  }
-
-  addEventListener("resize", build);
-  document.addEventListener("visibilitychange", function () {
-    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
-    else if (!raf) raf = requestAnimationFrame(frame);
-  });
-
-  build();
-  if (!calm) raf = requestAnimationFrame(frame);
-  else { x.clearRect(0, 0, W, H); Object.assign(cur, MOODS.world); drawMoon(0); drawTown(0); }
-
-  return {
-    set: function (mood) { if (MOODS[mood]) Object.assign(tgt, MOODS[mood]); },
-    tier: function (i, n) {          // ступень разума орды меняет фон
-      var f = i / (n - 1);
-      tgt.figs = .12 + f * .78;
-      tgt.glow = .06 + f * .85;
-      tgt.posture = f;
-      tgt.fog = .6 + f * .3;
-      tgt.moon = .55 + f * .45;
-      tgt.rune = .15 + f * .5;
-      tgt.lamp = Math.max(.05, .3 - f * .28);
-    }
-  };
-})();
-
-/* ==================================================== интро */
-(function () {
-  var gate = document.getElementById("gate"), site = document.getElementById("site");
-  Scene.set("intro");
-  function open() {
-    gate.classList.add("gone");
-    document.body.classList.remove("locked");
-    site.setAttribute("aria-hidden", "false");
-    site.classList.add("shown");
-    Scene.set("world");
-    setTimeout(function () { gate.style.display = "none"; }, 1200);
-  }
-  document.getElementById("enter").addEventListener("click", open);
-  addEventListener("keydown", function (e) {
-    if (gate.classList.contains("gone")) return;
-    if (e.key === "Enter" || e.key === " " || e.key === "Escape") { e.preventDefault(); open(); }
-  });
-})();
-
-/* ==================================================== копирование */
-document.querySelectorAll(".copy").forEach(function (b) {
-  b.addEventListener("click", function () {
-    var text = b.dataset.copy, old = b.textContent;
-    var done = function () {
-      b.textContent = "Скопировано"; b.classList.add("done");
-      setTimeout(function () { b.textContent = old; b.classList.remove("done"); }, 1600);
-    };
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { fb(text, done); });
-    else fb(text, done);
-  });
-});
-function fb(text, done) {
-  var t = document.createElement("textarea");
-  t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
-  document.body.appendChild(t); t.select();
-  try { document.execCommand("copy"); done(); } catch (e) {}
-  document.body.removeChild(t);
-}
-
-/* ==================================================== появление блоков */
-var io = new IntersectionObserver(function (es) {
-  es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
-}, { threshold: .18, rootMargin: "0px 0px -8% 0px" });
-document.querySelectorAll(".rise,.wipe,.step").forEach(function (el) { io.observe(el); });
-
-/* ==================================================== счётчики */
-var cio = new IntersectionObserver(function (es) {
-  es.forEach(function (e) {
-    if (!e.isIntersecting) return;
-    cio.unobserve(e.target);
-    var el = e.target, to = +el.dataset.count, sfx = el.dataset.suffix || "", t0 = performance.now();
-    if (calm) { el.textContent = to + sfx; return; }
-    (function step(t) {
-      var k = Math.min(1, (t - t0) / 900);
-      el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))) + sfx;
-      if (k < 1) requestAnimationFrame(step);
-    })(t0);
-  });
-}, { threshold: .6 });
-document.querySelectorAll("[data-count]").forEach(function (el) { cio.observe(el); });
-
-/* ==================================================== шкала и активный раздел */
-var bar = document.getElementById("bar");
-var ids = ["mir", "chto", "start", "donat", "svyaz"];
-function onScroll() {
-  var h = document.documentElement;
-  bar.style.width = (h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight) * 100).toFixed(2) + "%";
-  var cur = "";
-  ids.forEach(function (id) {
-    var s = document.getElementById(id);
-    if (s && s.getBoundingClientRect().top < innerHeight * .42) cur = id;
-  });
-  document.querySelectorAll(".rail a").forEach(function (a) { a.classList.toggle("on", a.dataset.rail === cur); });
-  document.querySelectorAll(".nav a").forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + cur); });
-}
-addEventListener("scroll", onScroll, { passive: true });
-onScroll();
-
-/* ==================================================== ступени разума орды */
-var MIND = [
-  ["T0", "Просто мертвецы", "Идут напролом, поодиночке, без выдумки. Пока ты слабее их — этого хватает."],
-  ["T1", "Слышат и приходят", "Реагируют на шум и свет за твоей спиной. Ночью к костру приходят не случайно."],
-  ["T2", "Ждут своих", "Одиночка не лезет: стоит в темноте и ждёт стаю около двадцати секунд. Раненый отступает, когда остаётся треть здоровья."],
-  ["T3", "Выбирают жертву", "Переключаются на того, кто слабее или занят — ест, пьёт, копает. Стая, потерявшая троих за двадцать секунд, обращается в бегство."],
-  ["T4", "Давят числом", "Обходят с боков и приходят толпой. Слабые стены маленьких поселений для них больше не преграда."],
-  ["T5", "Тянут сквозь стену", "Эндермен выдёргивает тебя из-за укрытия в два блока толщиной. Прятаться за одним слоем камня перестаёт работать."],
-  ["T6", "Прочёсывают район", "Оторвался в темноте — не забудут. Расходятся по округе и ищут там, где видели тебя последний раз."],
-  ["T7", "Лунная ночь", "Полная орда по календарю. К этому моменту у тебя уже должны быть стены, союзники и школа магии."]
-];
-var ticks = document.getElementById("ticks"), body = document.getElementById("mindbody"), gauge = document.getElementById("gauge");
-MIND.forEach(function (m, i) {
-  var b = document.createElement("button");
-  b.className = "tick"; b.type = "button"; b.textContent = m[0];
-  b.addEventListener("click", function () { showMind(i); });
-  ticks.appendChild(b);
-});
-var chosenTier = 2, activeMood = "world";
-
-function showMind(i) {
-  var m = MIND[i];
-  chosenTier = i;
-  Array.prototype.forEach.call(ticks.children, function (c, k) { c.classList.toggle("on", k === i); });
-  body.innerHTML = '<div class="swap"><h3>' + m[1] + "</h3><p>" + m[2] + "</p></div>";
-  gauge.style.width = ((i + 1) / MIND.length * 100) + "%";
-  if (activeMood === "horde") Scene.tier(i, MIND.length);   // фон отвечает только пока раздел на экране
-}
-showMind(2);
-
-/* ==================================================== настроение фона по разделу */
-function applyMood(m) {
-  activeMood = m;
-  if (m === "horde") Scene.tier(chosenTier, MIND.length);
-  else Scene.set(m);
-}
-var mio = new IntersectionObserver(function (es) {
-  var best = null;
-  es.forEach(function (e) {
-    if (e.isIntersecting && (!best || e.intersectionRatio > best.intersectionRatio)) best = e;
-  });
-  if (best && document.getElementById("gate").classList.contains("gone")) applyMood(best.target.dataset.mood);
-}, { threshold: [.2, .45, .7] });
-document.querySelectorAll("[data-mood]").forEach(function (el) { mio.observe(el); });
-
-/* ==================================================== параллакс шапки */
-if (!calm) {
-  var hero = document.getElementById("hero");
-  var title = hero.querySelector("h1"), plate = hero.querySelector(".plate");
-  addEventListener("scroll", function () {
-    var y = Math.min(scrollY, innerHeight);
-    title.style.transform = "translateY(" + (y * .09) + "px)";
-    plate.style.transform = "translateY(" + (y * -.05) + "px)";
-  }, { passive: true });
-}
-</script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
