@@ -150,12 +150,15 @@ export class World {
     this.mobile = mobile;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
     this.maxRatio = Math.min(devicePixelRatio, mobile ? 1.25 : 1.5);
-    this.ratio = this.maxRatio;
+    // старт — около 3 млн пикселей кадра (1080p чётко, 4K чуть мягче); дальше по скорости видеокарты:
+    // мощная поднимет до полного разрешения экрана, слабая опустит до ~1 млн пикселей и упростит эффекты
+    this.ratio = Math.min(this.maxRatio, this.pixels(3.0e6));
+    this.level = 0;                                   // ступень упрощения: 0 — полное качество
     this.renderer.setPixelRatio(this.ratio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = mobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x100d1c, 0.021);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
@@ -172,17 +175,19 @@ export class World {
     this.terrain(mobile ? 72 : 110);
     this.water();
     this.forest();
-    this.plants(mobile ? 1600 : 5200);
+    this.plants(mobile ? 1200 : 3600);
     this.skyline();
     this.ruins();
     this.rain(mobile ? 900 : 2600);
     this.fireflies(mobile ? 60 : 180);
-    this.ash(mobile ? 600 : 1600);
+    this.ash(mobile ? 400 : 900);
     this.embers(mobile ? 200 : 600);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.8, 0.6, 0.6);
+    const bs = this.bloom.setSize.bind(this.bloom);
+    this.bloom.setSize = (w, h) => bs(Math.round(w / 2), Math.round(h / 2));
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     // кадр как в трейлере: цветокор, мягкий свет в светах (halation), виньетка, зерно, аберрация по краям
@@ -415,7 +420,7 @@ export class World {
       m.geometry.dispose();
     }
     this.bakedMeshes = [];
-    const V = this.vox, CH = 32;
+    const V = this.vox, CH = 64;
     const occ = (x, y, z) => (V.has(vkey(x, y, z)) ? 1 : 0);
     const buckets = new Map();
     for (const [k, type] of V) {
@@ -580,7 +585,7 @@ export class World {
   /** Крест из двух плоскостей на каждой точке (как трава в Майнкрафте), одной отрисовкой. */
   cross(name, pts, size = 1, wind = 0.12, jitterSize = 0.4) {
     if (!pts.length) return;
-    const m = mat(name, { wind, anchored: true, side: THREE.DoubleSide });
+    const m = mat(name, { wind, anchored: true, side: THREE.DoubleSide, cheap: true });
     const geo = new THREE.PlaneGeometry(size, size);
     geo.translate(0, size / 2, 0);
     const o = new THREE.Object3D();
@@ -595,6 +600,7 @@ export class World {
       });
       im.receiveShadow = true;
       this.scene.add(im);
+      (this.plantMeshes ||= []).push(im);
     }
   }
 
@@ -729,6 +735,28 @@ export class World {
       }
     }
     this.scene.add(this.skyGroup);
+    // сотня башен и окон — две отрисовки
+    this.skyGroup.updateMatrixWorld(true);
+    const byMat = new Map();
+    for (const o of [...this.skyGroup.children]) {
+      const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      g.applyMatrix4(o.matrixWorld);
+      for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k);
+      if (!g.attributes.color) {
+        const c = new Float32Array(g.attributes.position.count * 3).fill(1);
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      }
+      if (!byMat.has(o.material)) byMat.set(o.material, []);
+      byMat.get(o.material).push(g);
+      this.skyGroup.remove(o);
+    }
+    for (const [m, gs] of byMat) {
+      if (m === hazeM) this.skyGroup.add(new THREE.Mesh(mergeGeometries(gs), m));
+      else {
+        m.vertexColors = true;
+        this.skyGroup.add(new THREE.Mesh(mergeGeometries(gs), m));
+      }
+    }
   }
 
   /**
@@ -1165,14 +1193,8 @@ export class World {
   lamp(spec) {
     if (!this.pool) {
       this.pool = [];
-      for (let i = 0; i < (this.mobile ? 5 : 9); i++) {
+      for (let i = 0; i < (this.mobile ? 4 : 6); i++) {
         const l = new THREE.PointLight(0xffffff, 0, 10, 1.6);
-        if (i === 0 && !this.mobile) {
-          l.castShadow = true;
-          l.shadow.mapSize.set(512, 512);
-          l.shadow.bias = -0.003;
-          l.shadow.camera.far = 20;
-        }
         this.scene.add(l);
         this.pool.push(l);
       }
@@ -1239,6 +1261,10 @@ export class World {
     if (gone) this.updaters = this.updaters.filter((u) => !u.gone);
   }
 
+  pixels(n) {
+    return Math.sqrt(n / Math.max(1, innerWidth * innerHeight));
+  }
+
   /** Разрешение подстраивается: не успеваем 50+ кадров — чуть меньше пикселей, успеваем с запасом — обратно. */
   adapt(dt) {
     if (document.hidden) return;
@@ -1246,12 +1272,30 @@ export class World {
     this.adaptT = (this.adaptT || 0) + dt;
     if (this.adaptT < 1.5) return;
     let r = this.ratio;
-    if (this.ft > 1 / 45 && r > 0.75) r = Math.max(0.75, r - 0.15);
-    else if (this.ft < 1 / 70 && r < this.maxRatio) r = Math.min(this.maxRatio, r + 0.1);
+    const slow = this.ft > 1 / 48, fast = this.ft < 1 / 75;
+    const floor = Math.min(this.maxRatio, Math.max(0.45, this.pixels(1.0e6)));
+    if (slow && r > floor + 0.01) r = Math.max(floor, r * 0.85);
+    else if (slow && this.level < 3) this.simplify(++this.level);
+    else if (fast && r < this.maxRatio) r = Math.min(this.maxRatio, r * 1.08);
+    this.adaptT = 0;
     if (r !== this.ratio) {
       this.ratio = r;
-      this.adaptT = 0;
       this.resize();
+    }
+  }
+
+  /** Слабая видеокарта: 1 — тени мельче, 2 — без свечения и дальней травы, 3 — тени только от луны без мобов. */
+  simplify(level) {
+    if (level === 1) {
+      this.moon.shadow.mapSize.set(1024, 1024);
+      this.moon.shadow.map?.dispose();
+      this.moon.shadow.map = null;
+    } else if (level === 2) {
+      this.bloom.enabled = false;
+      for (const p of this.plantMeshes || []) p.visible = false;
+    } else if (level === 3) {
+      this.renderer.shadowMap.enabled = false;
+      this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
     }
   }
 

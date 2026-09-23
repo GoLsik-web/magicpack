@@ -58,6 +58,11 @@ export function mat(name, opts = {}) {
   const key = name + JSON.stringify(opts);
   if (mats[key]) return mats[key];
   const flat = FLAT.has(name);
+  if (opts.cheap) {
+    const m = new THREE.MeshLambertMaterial({ map: tex(name), alphaTest: 0.5, side: opts.side ?? THREE.DoubleSide });
+    if (opts.wind) windify(m, opts.wind, opts.anchored);
+    return (mats[key] = m);
+  }
   const m = new THREE.MeshStandardMaterial({
     map: tex(name),
     roughness: opts.rough ?? 0.92,
@@ -272,7 +277,7 @@ class Rig {
     for (const [m, gs] of byMat) {
       const sm = new THREE.SkinnedMesh(mergeGeometries(gs), m);
       sm.castShadow = sm.receiveShadow = true;
-      sm.frustumCulled = false;
+      sm.frustumCulled = true;
       this.body.add(sm);
       sm.bind(skeleton);
       this.skinned.push(sm);

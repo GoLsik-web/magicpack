@@ -685,6 +685,13 @@ export class Horde {
       }
     }
     if (this.tier < 0) return;
+    // камера далеко (другой раздел) — сценка на паузе и не рисуется
+    const far = this.w.camera.position.distanceTo(this.c) > 70;
+    this.group.visible = !far;
+    if (far) {
+      this.started += dt;
+      return;
+    }
     const T = t - this.started;
     this.T = T;
     const live = (l) => l.filter((a) => a.alive);

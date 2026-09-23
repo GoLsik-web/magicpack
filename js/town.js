@@ -204,6 +204,10 @@ export class Town {
 
   update(dt, t) {
     this.now = t;
+    const far = this.w.camera.position.distanceTo(this.c) > 75;
+    this.group.visible = !far;
+    this.barrier.visible = !far;
+    if (far) return;
     if (this.pending) for (let i = this.pending.length - 1; i >= 0; i--) {
       const p = this.pending[i];
       if (p.list.sunk) this.pending.splice(i, 1);

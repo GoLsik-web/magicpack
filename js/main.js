@@ -34,12 +34,16 @@ const camp = [];
   }
   world.blocks('spruce_log', logs);
   world.blocks('spruce_planks', gate);
+  const tipGroup = new THREE.Group();
   for (const [x, y, z] of tips) {                        // острия
     const m = world.block('spruce_log', x, y, z);
     m.scale.set(0.55, 0.7, 0.55);
     m.position.y -= 0.15;
     m.rotation.y = 0.78;
+    tipGroup.attach(m);
   }
+  world.scene.add(tipGroup);
+  world.merge(tipGroup);
   // лагерь: костёр, палатка, ящики, бочки, фонари
   world.fire(at(hero, 0, 0, 2), 1.15);
   // палатка: два полотнища шалашом, колышки, внутри — спальник
@@ -104,6 +108,9 @@ const camp = [];
 const mouse = new THREE.Vector2(), ray = new THREE.Raycaster();
 const cursorWorld = new THREE.Vector3();
 world.updaters.push((dt, t) => {
+  const far = world.camera.position.distanceTo(at(hero)) > 75;       // лагерь за кадром — не анимируем
+  for (const h of camp) h.root.visible = !far;
+  if (far) return;
   for (const h of camp) {
     if (h.kind === 'walker') {
       const p = h.root.position;
