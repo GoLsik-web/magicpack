@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Magic Pack</title>
+<title>Magic Pack — страница потерялась</title>
 <meta name="description" content="Русский сервер выживания с магией на Minecraft 1.21.1. Мёртвые поумнели, города в руинах, выжившие держатся за стенами.">
 <meta property="og:title" content="Magic Pack — сервер выживания 1.21.1">
 <meta property="og:description" content="Мёртвые поумнели. Города в руинах. Выжившие держатся за стенами.">
@@ -312,16 +312,16 @@ footer .wrap{display:flex; gap:18px; flex-wrap:wrap; align-items:center; justify
 <!-- ======================================================== интро -->
 <div id="gate">
   <div class="gate-in">
-    <div class="kicker">Где-то в средней полосе · спустя годы</div>
-    <h1>Здесь больше<em>никого нет</em></h1>
+    <div class="kicker">Ошибка 404 · такой страницы нет</div>
+    <h1>Здесь ничего<em>не осталось</em></h1>
     <p>
-      Дороги заросли, города стоят пустые, и только ветер гоняет пепел между домами.
-      Кто-то ещё жив — за стенами, при свете фонарей. Остальное принадлежит тем, кто приходит ночью.
+      Страница, которую ты искал, не сохранилась. Бывает: карта старая, дороги заросли.
+      Вернись к началу — там всё на месте.
     </p>
-    <button class="enter" id="enter" type="button">
+    <a class="enter" href="/magicpack/" style="text-decoration:none">
       <span class="ring"><i></i></span>
-      Войти в мир
-    </button>
+      Вернуться
+    </a>
   </div>
   <div class="gate-foot">Minecraft 1.21.1 · NeoForge · русский сервер</div>
 </div>
@@ -818,7 +818,7 @@ var Scene = (function () {
     Scene.set("world");
     setTimeout(function () { gate.style.display = "none"; }, 1200);
   }
-  document.getElementById("enter").addEventListener("click", open);
+  var en = document.getElementById("enter"); if (en) en.addEventListener("click", open);
   addEventListener("keydown", function (e) {
     if (gate.classList.contains("gone")) return;
     if (e.key === "Enter" || e.key === " " || e.key === "Escape") { e.preventDefault(); open(); }
