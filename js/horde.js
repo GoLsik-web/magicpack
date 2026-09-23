@@ -52,15 +52,17 @@ class Agent {
     this.mob.root.position.copy(this.pos);
   }
 
-  /** Идти к точке со скоростью sp; вернуть расстояние. */
+  /** Идти к точке со скоростью sp (в обход стен сценки); вернуть расстояние до самой точки. */
   seek(target, sp, dt) {
-    const d = V(target.x - this.pos.x, 0, target.z - this.pos.z);
-    const dist = d.length();
+    const full = Math.hypot(target.x - this.pos.x, target.z - this.pos.z);
+    const step = this.d.route(this, target);
+    const d = V(step.x - this.pos.x, 0, step.z - this.pos.z);
+    const dist = step === target ? full : Math.max(d.length(), 0.8);
     if (dist > 0.15) {
       d.normalize().multiplyScalar(sp * Math.min(1, dist / 0.8));
       this.vel.lerp(d, Math.min(1, dt * 3.5));
     } else this.vel.multiplyScalar(0.8);
-    return dist;
+    return full;
   }
 
   stop(dt) {
@@ -83,7 +85,14 @@ class Agent {
       this.mob.animate(dt, t);
       return;
     }
+    // шаг с упором в стены: нельзя войти в клетку с блоком — скользит вдоль стены
+    const ox = this.pos.x, oz = this.pos.z;
     this.pos.addScaledVector(this.vel, dt);
+    if (this.d.blocked(this.pos.x, this.pos.z)) {
+      if (!this.d.blocked(this.pos.x, oz)) this.pos.z = oz;
+      else if (!this.d.blocked(ox, this.pos.z)) this.pos.x = ox;
+      else this.pos.x = ox, this.pos.z = oz;
+    }
     this.place();
     const sp = this.vel.length();
     this.mob.speed = sp;
@@ -156,6 +165,7 @@ export class Horde {
     this.rings = [];
     this.kills = 0;
     this.flags = {};
+    this.solid = new Set();
   }
 
   add(mob, x, z, hp, list) {
@@ -193,12 +203,99 @@ export class Horde {
   }
 
   /** Блоки сцены одной отрисовкой. list: [[dx, y, dz]] относительно центра, y — абсолютная высота. */
+  /** Стена сценки в клетке (x, z)? Считаются блоки на уровне ног и груди. */
+  blocked(x, z) {
+    return this.solid.size > 0 && this.solid.has(Math.floor(x) + ',' + Math.floor(z));
+  }
+
+  mark(x, y, z) {
+    const g = this.c.y + 1;
+    if (y >= g && y < g + 2) this.solid.add(Math.floor(x) + ',' + Math.floor(z));
+  }
+
+  /**
+   * Куда шагать к цели: если по прямой стен нет — прямо; иначе путь по клеткам в обход (поиск в ширину
+   * по сетке вокруг площадки), через двери и проломы. Путь запоминается, пока цель в той же клетке.
+   */
+  route(a, target) {
+    if (!this.solid.size) return target;
+    const tk = Math.floor(target.x) + ',' + Math.floor(target.z);
+    if (this.sight(a.pos, target)) {
+      a.path = null;
+      return target;
+    }
+    if (!a.path || a.pathKey !== tk || (a.pathAge = (a.pathAge || 0) + 1) > 90) {
+      a.pathKey = tk;
+      a.pathAge = 0;
+      a.path = this.bfs(a.pos, target) || [];          // нет пути — идём как можем, не пересчитывая каждый кадр
+    }
+    while (a.path && a.path.length && Math.hypot(a.path[0].x - a.pos.x, a.path[0].z - a.pos.z) < 0.45) a.path.shift();
+    // срезать угол: если до следующей точки уже видно — сразу к ней
+    while (a.path && a.path.length > 1 && this.sight(a.pos, a.path[1])) a.path.shift();
+    return a.path && a.path.length ? a.path[0] : target;
+  }
+
+  sight(p, q) {
+    const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 0.3);
+    for (let i = 1; i <= n; i++) {
+      const x = p.x + (q.x - p.x) * (i / n), z = p.z + (q.z - p.z) * (i / n);
+      for (const [ox, oz] of [[0.3, 0], [-0.3, 0], [0, 0.3], [0, -0.3]]) if (this.blocked(x + ox, z + oz)) return false;
+    }
+    return true;
+  }
+
+  bfs(from, to) {
+    // сетка вокруг площадки в типизированных массивах: поиск занимает доли миллисекунды
+    const R = 34, W = R * 2 + 1, cx = Math.floor(this.c.x) - R, cz = Math.floor(this.c.z) - R;
+    if (!this.grid || this.gridSize !== this.solid.size) {
+      this.grid = new Uint8Array(W * W);
+      for (const k of this.solid) {
+        const [x, z] = k.split(',').map(Number);
+        if (x >= cx && x < cx + W && z >= cz && z < cz + W) this.grid[(z - cz) * W + (x - cx)] = 1;
+      }
+      this.gridSize = this.solid.size;
+      this.prev = new Int32Array(W * W);
+      this.queue = new Int32Array(W * W);
+    }
+    const G = this.grid, prev = this.prev.fill(-1), q = this.queue;
+    const cell = (p) => {
+      const x = Math.min(W - 1, Math.max(0, Math.floor(p.x) - cx)), z = Math.min(W - 1, Math.max(0, Math.floor(p.z) - cz));
+      return z * W + x;
+    };
+    const s0 = cell(from), goal = cell(to);
+    let head = 0, tail = 0;
+    q[tail++] = s0;
+    prev[s0] = s0;
+    while (head < tail) {
+      const c = q[head++];
+      if (c === goal) break;
+      const x = c % W, z = (c - x) / W;
+      for (let d = 0; d < 8; d++) {
+        const dx = [1, -1, 0, 0, 1, 1, -1, -1][d], dz = [0, 0, 1, -1, 1, -1, 1, -1][d];
+        const nx = x + dx, nz = z + dz;
+        if (nx < 0 || nz < 0 || nx >= W || nz >= W) continue;
+        const n = nz * W + nx;
+        if (prev[n] !== -1 || G[n]) continue;
+        if (dx && dz && (G[z * W + nx] || G[nz * W + x])) continue;          // без срезания углов
+        prev[n] = c;
+        q[tail++] = n;
+      }
+    }
+    if (prev[goal] === -1) return null;
+    const path = [];
+    for (let c = goal; c !== s0; c = prev[c]) path.unshift(V(cx + (c % W) + 0.5, 0, cz + Math.floor(c / W) + 0.5));
+    if (path.length) path[path.length - 1] = V(to.x, 0, to.z);
+    return path;
+  }
+
   blocks(m, list) {
+    for (const [dx, y, dz] of list) this.mark(this.c.x + dx, y, this.c.z + dz);
     return this.w.blocks(mat(m, { bump: 1.2 }), list.map(([dx, y, dz]) => [this.c.x + dx, y, this.c.z + dz]), this.group);
   }
 
   /** Одиночный блок (может разлететься). */
-  block(m, dx, y, dz) {
+  block(m, dx, y, dz, solid = true) {
+    if (solid) this.mark(this.c.x + dx, y, this.c.z + dz);
     const o = new THREE.Mesh(this.w._box ||= new THREE.BoxGeometry(1, 1, 1), mat(m));
     o.position.set(this.c.x + dx + 0.5, y + 0.5, this.c.z + dz + 0.5);
     o.castShadow = o.receiveShadow = true;
@@ -369,7 +466,7 @@ export class Horde {
         const G = this.survivor(-1, 3.5, 'survivor', 'sword');
         G.post = G.pos.clone();
         for (const dx of [4, 5]) {                                   // подстилка на земле
-          const b = this.block('wool_red', dx, y0, 6);
+          const b = this.block('wool_red', dx, y0, 6, false);
           b.scale.y = 0.08;
           b.position.y = y0 + 0.04;
         }
@@ -403,7 +500,7 @@ export class Horde {
         for (let a = 0; a < Math.PI * 2; a += 0.21) {
           const dx = Math.round(Math.cos(a) * 8), dz = Math.round(6 + Math.sin(a) * 6.5);
           if (this.fence.some((b) => b.userData.dx === dx && b.userData.dz === dz)) continue;
-          const b = this.block(Math.round(a * 10) % 2 ? 'log' : 'spruce_planks', dx, y0, dz);
+          const b = this.block(Math.round(a * 10) % 2 ? 'log' : 'spruce_planks', dx, y0, dz, false);
           b.scale.set(0.3, 1.2, 0.3);
           b.position.y += 0.1;
           b.userData = { dx, dz };
@@ -469,7 +566,7 @@ export class Horde {
           const w = this.walker(10 + (k % 4) * 2, -8 - Math.floor(k / 4) * 3, k);
           w.delay = 1.5 + k * 0.4;
         }
-        this.probes = [V(-8.5, 0, -4), V(-6, 0, -2), V(6.5, 0, -6.5), V(3, 0, -7), V(-0.5, 0, 1.5), V(-4, 0, 5), V(3, 0, 5), V(0, 0, -3)]
+        this.probes = [V(-8.5, 0, -4), V(-5, 0, -1), V(6.5, 0, -6.5), V(3, 0, -7), V(-0.5, 0, 1.5), V(-4, 0, 5), V(3, 0, 5), V(0, 0, -3)]
           .map((p) => p.add(V(C.x, 0, C.z)));
         break;
       }
@@ -540,9 +637,9 @@ export class Horde {
   /** Фонарь на столбике: тёплый свет в темноте. */
   lantern(dx, dz) {
     const yb = this.y(this.c.x + dx, this.c.z + dz);
-    const post = this.block('spruce_log', dx, yb, dz);
+    const post = this.block('spruce_log', dx, yb, dz, false);
     post.scale.set(0.2, 1, 0.2);
-    const l = this.block('lantern', dx, yb + 1, dz);
+    const l = this.block('lantern', dx, yb + 1, dz, false);
     l.scale.setScalar(0.4);
     l.position.y -= 0.3;
     const anchor = new THREE.Object3D();
