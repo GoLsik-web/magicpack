@@ -1194,6 +1194,7 @@ export class Horde {
     a.mob.deadT = 0;
     a.mob.root.rotation.x = 0;
     a.mob.root.rotation.z = 0;
+    a.mob.root.visible = true;
     a.place();
   }
 }

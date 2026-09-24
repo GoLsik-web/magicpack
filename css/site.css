@@ -203,3 +203,19 @@ code { font-family: "JetBrains Mono", monospace; color: var(--accent); }
 body.no3d #scene { display: none; }
 body.no3d { background: radial-gradient(ellipse at 30% 0%, #2a1740 0%, var(--bg) 60%); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .scroll { animation: none; } }
+
+/* ---- указатель страниц вместо полосы прокрутки ---- */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.pager { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+.pager a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--dim); font: 600 11px "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; }
+.pager i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); transition: transform .25s, background .25s, border-color .25s; }
+.pager .lbl { opacity: 0; transform: translateX(6px); transition: opacity .2s, transform .2s; }
+.pager a:hover .lbl, .pager a.on .lbl { opacity: 1; transform: none; }
+.pager a.on { color: var(--ink); }
+.pager a.on i { background: #b27cff; border-color: #b27cff; transform: scale(1.5); box-shadow: 0 0 10px rgba(178,124,255,.7); }
+.pager .count { margin-top: 6px; font: 500 11px "JetBrains Mono", monospace; color: var(--dim); font-weight: 500; }
+.pager .count em { font-style: normal; color: var(--ink); font-weight: 700; }
+@media (max-width: 760px) { .pager { right: 8px; gap: 10px; } .pager .lbl, .pager .count { display: none; } }
+/* слабое железо: размытие фона под карточками поверх живой 3D-сцены пересчитывается каждый кадр — убираем */
+body.lite .split .card, body.lite .stage .card, body.lite .end .card { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(12, 10, 20, 0.84); }

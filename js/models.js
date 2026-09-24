@@ -335,7 +335,7 @@ class Rig {
     this.deadT += dt;
     const f = ease(Math.min(1, this.deadT / 0.7));
     this.root.rotation.z = f * Math.PI / 2 * 0.95;
-    this.root.position.y = this.ground + f * 0.3 - Math.max(0, this.deadT - 2.5) * 0.4;
+    { const sink = Math.min(1.6, Math.max(0, this.deadT - 2.5) * 0.4); this.root.position.y = this.ground + f * 0.3 - sink; this.root.visible = sink < 1.6; }
     this.settle(dt, 8);
     this.flash(dt);
     return true;
@@ -588,7 +588,7 @@ export class Humanoid extends Rig {
       this.deadT = (this.deadT || 0) + dt;
       const f = ease(Math.min(1, this.deadT / 0.9));
       this.root.rotation.x = -f * (Math.PI / 2 - 0.08) * (this.fallDir || 1);
-      this.root.position.y = this.ground + f * 0.25 - Math.max(0, this.deadT - 2.5) * 0.4;
+      { const sink = Math.min(1.6, Math.max(0, this.deadT - 2.5) * 0.4); this.root.position.y = this.ground + f * 0.25 - sink; this.root.visible = sink < 1.6; }
       G(this.rarm).x = -0.3 * f;
       G(this.larm).x = -0.8 * f;
       G(this.rarm).z = -1.2 * f;

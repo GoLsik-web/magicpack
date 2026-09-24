@@ -150,9 +150,17 @@ export class World {
     this.mobile = mobile;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
     this.maxRatio = Math.min(devicePixelRatio, mobile ? 1.25 : 1.5);
+    // слабое железо (встройка, мало ядер, мало памяти) — сразу стартуем упрощённо, не ждём первых рывков
+    let gpu = '';
+    try {
+      const gl = this.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+      gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+    } catch { /* нет сведений */ }
+    this.weak = mobile || /intel|uhd|iris|mali|adreno|powervr|swiftshader|llvmpipe|microsoft basic|radeon\(tm\) graphics|vega \d graphics/i.test(gpu)
+      || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
     // старт — около 3 млн пикселей кадра (1080p чётко, 4K чуть мягче); дальше по скорости видеокарты:
     // мощная поднимет до полного разрешения экрана, слабая опустит до ~1 млн пикселей и упростит эффекты
-    this.ratio = Math.min(this.maxRatio, this.pixels(3.0e6));
+    this.ratio = Math.min(this.maxRatio, this.pixels(this.weak ? 1.1e6 : 2.2e6));
     this.level = 0;                                   // ступень упрощения: 0 — полное качество
     this.renderer.setPixelRatio(this.ratio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -173,16 +181,17 @@ export class World {
     this.lights();
     this.sky();
     this.clouds();
+    const lite = this.weak;
     this.terrain(mobile ? 72 : 110);
     this.water();
     this.forest();
-    this.plants(mobile ? 1200 : 3600);
+    this.plants(mobile ? 1200 : lite ? 1800 : 3000);
     this.skyline();
     this.ruins();
-    this.rain(mobile ? 900 : 2600);
-    this.fireflies(mobile ? 60 : 180);
-    this.ash(mobile ? 400 : 900);
-    this.embers(mobile ? 200 : 600);
+    this.rain(mobile ? 900 : lite ? 1200 : 2000);
+    this.fireflies(mobile ? 60 : lite ? 90 : 150);
+    this.ash(mobile ? 400 : lite ? 450 : 800);
+    this.embers(mobile ? 200 : lite ? 300 : 500);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -217,8 +226,14 @@ export class World {
       WIND.time.value = t;
       this.blend(dt, t);
     });
+    if (this.weak) {
+      this.simplify(++this.level);
+      this.simplify(++this.level);
+    }
     this.resize();
     addEventListener('resize', () => this.resize());
+    // вкладка не видна / сцена за краем — не рисуем (экономит GPU на слабых машинах и ноутбуках)
+    document.addEventListener('visibilitychange', () => this.clock.getDelta());
   }
 
   resize() {
@@ -237,7 +252,7 @@ export class World {
     this.scene.add(this.hemi);
     this.moon = new THREE.DirectionalLight(0xaab6ff, 1.9);
     this.moon.castShadow = true;
-    const S = this.mobile ? 1024 : 2048;
+    const S = this.mobile || this.weak ? 1024 : 2048;
     this.moon.shadow.mapSize.set(S, S);
     this.moon.shadow.bias = -0.0003;
     this.moon.shadow.normalBias = 0.035;
@@ -1211,7 +1226,7 @@ export class World {
   lamp(spec) {
     if (!this.pool) {
       this.pool = [];
-      for (let i = 0; i < (this.mobile ? 4 : 6); i++) {
+      for (let i = 0; i < (this.mobile || this.weak ? 3 : 5); i++) {
         const l = new THREE.PointLight(0xffffff, 0, 10, 1.6);
         this.scene.add(l);
         this.pool.push(l);
@@ -1290,10 +1305,10 @@ export class World {
     this.adaptT = (this.adaptT || 0) + dt;
     if (this.adaptT < 1.5) return;
     let r = this.ratio;
-    const slow = this.ft > 1 / 45, fast = this.ft < 1 / 90 && this.adaptT > 10;
+    const slow = this.ft > 1 / 50, fast = this.ft < 1 / 90 && this.adaptT > 10;
     const floor = Math.min(this.maxRatio, Math.max(0.45, this.pixels(1.0e6)));
     if (slow && r > floor + 0.01) r = Math.max(floor, r * 0.85);
-    else if (slow && this.level < 3) this.simplify(++this.level);
+    else if (slow && this.level < 5) this.simplify(++this.level);
     else if (fast && r < this.maxRatio) r = Math.min(this.maxRatio, r * 1.08);
     this.adaptT = 0;
     if (r !== this.ratio) {
@@ -1309,23 +1324,35 @@ export class World {
       this.moon.shadow.map?.dispose();
       this.moon.shadow.map = null;
     } else if (level === 2) {
+      document.body.classList.add('lite');                    // без размытия под карточками (дорого поверх 3D)
       this.bloom.enabled = false;
       for (const p of this.plantMeshes || []) p.visible = false;
     } else if (level === 3) {
       this.renderer.shadowMap.enabled = false;
       this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+    } else if (level === 4) {
+      this.grade.enabled = false;                              // цветокор, зерно, аберрация — полноэкранный проход
+      for (const p of this.pool || []) p.castShadow = false;
+    } else if (level === 5) {
+      this.cap = 1 / 30;                                         // последний шаг: ровные 30 кадров вместо рваных 20–40
     }
   }
 
   run() {
+    let acc = 0;
     const loop = () => {
-      const dt = Math.min(0.05, this.clock.getDelta()), t = this.clock.elapsedTime;
+      requestAnimationFrame(loop);
+      if (this.cap) {                                              // ограничение кадров на совсем слабом железе
+        acc += this.clock.getDelta();
+        if (acc < this.cap) return;
+      }
+      const dt = Math.min(0.05, this.cap ? acc : this.clock.getDelta()), t = this.clock.elapsedTime;
+      acc = 0;
       this.tick(dt, t);
-      this.renderer.shadowMap.needsUpdate = this.frames % 2 === 0;
+      this.renderer.shadowMap.needsUpdate = this.frames % (this.weak ? 4 : 3) === 0;
       this.composer.render();
       this.adapt(dt);
       this.frames = (this.frames || 0) + 1;
-      requestAnimationFrame(loop);
     };
     loop();
   }
