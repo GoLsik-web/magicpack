@@ -159,6 +159,7 @@ export class World {
     this.renderer.toneMappingExposure = 1.3;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x100d1c, 0.021);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
@@ -882,38 +883,36 @@ export class World {
     return (this._smokeTex = new THREE.CanvasTexture(c));
   }
 
+  /**
+   * Частицы без пересчёта на процессоре: у каждой — номер и фаза, положение по времени считает шейдер.
+   * Буферы не перезаливаются каждый кадр — меняются только два числа (время, ветер).
+   */
+  gpuPoints(n, vertex, fragment, uniforms, extra = {}) {
+    const k = new Float32Array(n), pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) k[i] = i;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('k', new THREE.BufferAttribute(k, 1));
+    for (const name in extra) g.setAttribute(name, extra[name]);
+    const u = { t: WIND.time, wind: WIND.strength, scale: { value: innerHeight * 0.5 }, ...uniforms };
+    const m = new THREE.ShaderMaterial({ uniforms: u, transparent: true, depthWrite: false, vertexShader: vertex, fragmentShader: fragment });
+    const p = new THREE.Points(g, m);
+    p.frustumCulled = false;
+    return p;
+  }
+
   /** Столб дыма: мягкие клубы поднимаются, растут, сносятся ветром и тают. */
   smoke(at, strength = 1, color = 0x3a3640, parent = this.scene) {
     const N = Math.round(26 * strength);
-    const pos = new Float32Array(N * 3), life = new Float32Array(N);
-    for (let i = 0; i < N; i++) life[i] = i / N;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('life', new THREE.BufferAttribute(life, 1));
-    const m = new THREE.ShaderMaterial({
-      uniforms: { map: { value: this.smokeTex() }, color: { value: new THREE.Color(color) }, scale: { value: innerHeight * 0.5 } },
-      transparent: true, depthWrite: false,
-      vertexShader: `attribute float life; varying float vL; uniform float scale;
-        void main(){ vL = life; vec4 mv = modelViewMatrix * vec4(position, 1.);
-          gl_PointSize = (1.2 + life * 5.) * scale / -mv.z; gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform sampler2D map; uniform vec3 color; varying float vL;
-        void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(color, t.a * .42 * smoothstep(0., .15, vL) * (1. - vL)); }`,
-    });
-    const p = new THREE.Points(g, m);
+    const p = this.gpuPoints(N, `attribute float k; uniform float t, wind, scale, n; varying float vL;
+        void main(){ float L = fract(k / n + t * .09); vL = L;
+          vec3 q = vec3(sin(k * 3.1 + t * .3) * .4 * L + L * 3. * wind, L * 9., cos(k * 1.7) * .4 * L);
+          vec4 mv = modelViewMatrix * vec4(q, 1.); gl_PointSize = (1.2 + L * 5.) * scale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+      `uniform sampler2D map; uniform vec3 color; varying float vL;
+        void main(){ vec4 tx = texture2D(map, gl_PointCoord); gl_FragColor = vec4(color, tx.a * .42 * smoothstep(0., .15, vL) * (1. - vL)); }`,
+      { map: { value: this.smokeTex() }, color: { value: new THREE.Color(color) }, n: { value: N } });
     p.position.copy(at);
-    p.frustumCulled = false;
     parent.add(p);
-    this.updaters.push((dt, t) => {
-      if (!this.attached(p)) return false;
-      const a = g.attributes.position, l = g.attributes.life;
-      for (let i = 0; i < N; i++) {
-        let L = l.getX(i) + dt * 0.09;
-        if (L > 1) L = 0;
-        l.setX(i, L);
-        a.setXYZ(i, Math.sin(i * 3.1 + t * 0.3) * 0.4 * L + L * 5 * WIND.strength.value * 0.6, L * 9, Math.cos(i * 1.7) * 0.4 * L);
-      }
-      a.needsUpdate = l.needsUpdate = true;
-    });
     return p;
   }
 
@@ -967,110 +966,95 @@ export class World {
     group.add(coals);
     const light = this.lamp({ obj: group, offset: new THREE.Vector3(0, 1.2, 0), color: 0xff8a3a, distance: 26, shadow: true,
       power: (t) => (30 + Math.sin(t * 13) * 5 + Math.sin(t * 4.7) * 4) * strength });
-    const N = 60, pos = new Float32Array(N * 3), life = new Float32Array(N);
-    for (let i = 0; i < N; i++) life[i] = Math.random();
-    const eg = new THREE.BufferGeometry();
-    eg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const sparks = new THREE.Points(eg, new THREE.PointsMaterial({ color: 0xffa050, size: 0.08, transparent: true,
-      blending: THREE.AdditiveBlending, depthWrite: false }));
+    const sparks = this.gpuPoints(60, `attribute float k; uniform float t, wind, scale, h; varying float vL;
+        void main(){ float rate = .35 + mod(k, 5.) * .08; float L = fract(t * rate + fract(sin(k * 91.7) * 437.5)); vL = L;
+          vec3 q = vec3(sin(k * 12.9 + L * 6.) * .3 * (1. + L) + L * wind * .8, L * 5. * h, cos(k * 7.3 + L * 5.) * .3 * (1. + L));
+          vec4 mv = modelViewMatrix * vec4(q, 1.); gl_PointSize = .08 * scale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+      `varying float vL; void main(){ float d = length(gl_PointCoord - .5); gl_FragColor = vec4(1., .63, .31, (1. - vL) * smoothstep(.5, .2, d)); }`,
+      { h: { value: strength } });
+    sparks.material.blending = THREE.AdditiveBlending;
     group.add(sparks);
     parent.add(group);
     this.merge(group);
     this.smoke(at.clone().add(new THREE.Vector3(0, 1.6 * strength, 0)), 0.6, 0x2a2630, parent);
     this.updaters.push((dt, t) => {
       if (!this.attached(group)) return false;
-      uni.t.value = t;
-      const a = eg.attributes.position;
-      for (let i = 0; i < N; i++) {
-        life[i] += dt * (0.35 + (i % 5) * 0.08);
-        if (life[i] > 1) life[i] = 0;
-        const L = life[i];
-        a.setXYZ(i, Math.sin(i * 12.9 + L * 6) * 0.3 * (1 + L) + L * WIND.strength.value * 0.8, L * 5 * strength, Math.cos(i * 7.3 + L * 5) * 0.3 * (1 + L));
-      }
-      a.needsUpdate = true;
+      uni.t.value = t;       // пламя; искры и дым двигает шейдер
     });
     group.userData.light = light;
     return group;
   }
 
-  /** Пепел: медленно падает и кружит — «мир после». */
+  /** Пепел: медленно падает и кружит — «мир после». Движение считает шейдер. */
   ash(n) {
-    const pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) pos.set([(Math.random() - 0.5) * 60, Math.random() * 30, (Math.random() - 0.5) * 60], i * 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.ashPts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xa89fb0, size: 0.06, transparent: true, opacity: 0.5, depthWrite: false }));
-    this.ashPts.frustumCulled = false;
+    const base = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) base.set([Math.random() * 60, Math.random() * 30, (Math.random() - 0.5) * 60], i * 3);
+    this.ashDrift = { value: 0 };
+    this.ashPts = this.gpuPoints(n, `attribute float k; attribute vec3 base; uniform float t, scale, drift; varying float a;
+        void main(){ float sp = .5 + mod(k, 7.) * .08;
+          vec3 q = vec3(mod(base.x + drift + sin(t * .4 + k) * .6, 60.) - 30., mod(base.y - t * sp, 30.), base.z);
+          vec4 mv = modelViewMatrix * vec4(q, 1.); gl_PointSize = max(1., .06 * scale / -mv.z); gl_Position = projectionMatrix * mv; }`,
+      `void main(){ gl_FragColor = vec4(.66, .62, .69, .5); }`, { drift: this.ashDrift }, { base: new THREE.BufferAttribute(base, 3) });
     this.scene.add(this.ashPts);
-    this.updaters.push((dt, t) => {
+    this.updaters.push((dt) => {
       this.ashPts.position.set(Math.floor(this.focus.x / 60) * 60, 0, Math.floor(this.focus.z / 60) * 60);
-      const a = g.attributes.position;
-      for (let i = 0; i < n; i++) {
-        let y = a.getY(i) - dt * (0.5 + (i % 7) * 0.08);
-        const x = a.getX(i) + Math.sin(t * 0.4 + i) * dt * 0.4 + dt * WIND.strength.value * 0.5;
-        if (y < 0) y = 30;
-        a.setXY(i, x > 30 ? x - 60 : x, y);
-      }
-      a.needsUpdate = true;
+      this.ashDrift.value += dt * WIND.strength.value * 0.5;
     });
   }
 
-  /** Искры в воздухе (кровавая луна): летят снизу вверх, светятся. */
+  /** Искры в воздухе (кровавая луна): летят снизу вверх, светятся. Движение считает шейдер. */
   embers(n) {
-    const pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) pos.set([(Math.random() - 0.5) * 70, Math.random() * 25, (Math.random() - 0.5) * 70], i * 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.emberMat = new THREE.PointsMaterial({ color: 0xff6a3a, size: 0.09, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
-    const p = new THREE.Points(g, this.emberMat);
-    p.frustumCulled = false;
+    const base = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) base.set([(Math.random() - 0.5) * 70, Math.random() * 25, (Math.random() - 0.5) * 70], i * 3);
+    this.emberAmount = { value: 0 };
+    const p = this.gpuPoints(n, `attribute float k; attribute vec3 base; uniform float t, scale;
+        void main(){ float sp = .8 + mod(k, 5.) * .3;
+          vec3 q = vec3(base.x + sin(t + k) * .6, mod(base.y + t * sp, 25.), base.z);
+          vec4 mv = modelViewMatrix * vec4(q, 1.); gl_PointSize = max(1., .09 * scale / -mv.z); gl_Position = projectionMatrix * mv; }`,
+      `uniform float amount; void main(){ float d = length(gl_PointCoord - .5); gl_FragColor = vec4(1., .42, .23, amount * smoothstep(.5, .15, d)); }`,
+      { amount: this.emberAmount }, { base: new THREE.BufferAttribute(base, 3) });
+    p.material.blending = THREE.AdditiveBlending;
+    this.emberMat = { set opacity(v) { p.visible = v > 0.01; p.parent && (this._a.value = v); }, _a: this.emberAmount };
     this.scene.add(p);
-    this.updaters.push((dt, t) => {
-      if (this.emberMat.opacity < 0.01) return;
-      p.position.set(this.focus.x, 0, this.focus.z);
-      const a = g.attributes.position;
-      for (let i = 0; i < n; i++) {
-        let y = a.getY(i) + dt * (0.8 + (i % 5) * 0.3);
-        if (y > 25) y = 0;
-        a.setXY(i, a.getX(i) + Math.sin(t + i) * dt * 0.6, y);
-      }
-      a.needsUpdate = true;
-    });
+    this.updaters.push(() => p.visible && p.position.set(this.focus.x, 0, this.focus.z));
   }
 
-  /** Дождь: косые струи вокруг камеры, сила и угол — от ветра; при грозе — молнии. */
+  /** Дождь: косые струи вокруг камеры, сила и угол — от ветра; при грозе — молнии. Струи двигает шейдер. */
   rain(n) {
-    const pos = new Float32Array(n * 6);
     const R = 34;
+    const base = new Float32Array(n * 6), top = new Float32Array(n * 2), k = new Float32Array(n * 2);
     for (let i = 0; i < n; i++) {
-      const x = (Math.random() - 0.5) * R * 2, y = Math.random() * 30, z = (Math.random() - 0.5) * R * 2;
-      pos.set([x, y, z, x, y + 0.7, z], i * 6);
+      const x = Math.random() * R * 2, y = Math.random() * 30, z = (Math.random() - 0.5) * R * 2;
+      base.set([x, y, z, x, y, z], i * 6);
+      top[i * 2 + 1] = 1;
+      k[i * 2] = k[i * 2 + 1] = i;
     }
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.rainMat = new THREE.LineBasicMaterial({ color: 0x9aa8c0, transparent: true, opacity: 0, depthWrite: false });
+    g.setAttribute('position', new THREE.BufferAttribute(base, 3));
+    g.setAttribute('top', new THREE.BufferAttribute(top, 1));
+    this.rainU = { t: WIND.time, shift: { value: 0 }, lean: { value: 0 }, amount: { value: 0 } };
+    this.rainMat = new THREE.ShaderMaterial({
+      uniforms: this.rainU, transparent: true, depthWrite: false,
+      vertexShader: `attribute float top; uniform float t, shift, lean;
+        void main(){ vec3 p = position; float y = mod(p.y - t * 26., 30.);
+          float x = mod(p.x + shift, 68.) - 34.;
+          p = vec3(x - top * lean * .7, y + top * .7, p.z);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.); }`,
+      fragmentShader: `uniform float amount; void main(){ gl_FragColor = vec4(.6, .66, .75, amount * .35); }`,
+    });
     const lines = new THREE.LineSegments(g, this.rainMat);
     lines.frustumCulled = false;
     this.scene.add(lines);
     this.flashT = 0;
     this.updaters.push((dt, t) => {
       const amount = this.cur.rain;
-      this.rainMat.opacity = amount * 0.35;
-      if (amount < 0.01) return;
+      this.rainU.amount.value = amount;
+      lines.visible = amount > 0.01;
+      if (!lines.visible) return;
       lines.position.set(this.camera.position.x, 0, this.camera.position.z - 10);
-      const a = g.attributes.position, wind = WIND.strength.value * 0.12;
-      for (let i = 0; i < n; i++) {
-        let y = a.getY(i * 2) - dt * 26;
-        let x = a.getX(i * 2) + dt * 26 * wind;
-        if (y < 0) {
-          y += 30;
-          x = (Math.random() - 0.5) * R * 2;
-        }
-        if (x > R) x -= R * 2;
-        a.setXYZ(i * 2, x, y, a.getZ(i * 2));
-        a.setXYZ(i * 2 + 1, x - wind * 0.7, y + 0.7, a.getZ(i * 2));
-      }
-      a.needsUpdate = true;
+      const wind = WIND.strength.value * 0.12;
+      this.rainU.shift.value += dt * 26 * wind;
+      this.rainU.lean.value = wind;
       // молния: двойная вспышка раз в несколько секунд
       if (this.cur.storm > 0.5) {
         this.flashT -= dt;
@@ -1337,6 +1321,7 @@ export class World {
     const loop = () => {
       const dt = Math.min(0.05, this.clock.getDelta()), t = this.clock.elapsedTime;
       this.tick(dt, t);
+      this.renderer.shadowMap.needsUpdate = this.frames % 2 === 0;
       this.composer.render();
       this.adapt(dt);
       this.frames = (this.frames || 0) + 1;

@@ -60,6 +60,7 @@ export function mat(name, opts = {}) {
   const flat = FLAT.has(name);
   if (opts.cheap) {
     const m = new THREE.MeshLambertMaterial({ map: tex(name), alphaTest: 0.5, side: opts.side ?? THREE.DoubleSide });
+    m.userData.shared = true;
     if (opts.wind) windify(m, opts.wind, opts.anchored);
     return (mats[key] = m);
   }
@@ -82,6 +83,7 @@ export function mat(name, opts = {}) {
     m.emissiveIntensity = opts.glow ?? 1.6;
   }
   if (opts.wind) windify(m, opts.wind, opts.anchored);
+  m.userData.shared = true;
   mats[key] = m;
   return m;
 }
@@ -310,6 +312,7 @@ class Rig {
   own(m) {
     const c = m.clone();
     c.onBeforeCompile = m.onBeforeCompile;
+    c.userData = {};
     this.mats.push(c);
     return c;
   }

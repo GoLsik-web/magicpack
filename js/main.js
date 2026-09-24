@@ -212,21 +212,13 @@ let glide = null, lastWheel = 0, wheelSum = 0;
 function glideTo(y) {
   y = Math.max(0, Math.min(y, document.documentElement.scrollHeight - innerHeight));
   if (Math.abs(y - scrollY) < 2) return;
-  if (calm) return void scrollTo(0, y);
-  const from = scrollY, dist = y - from;
-  const dur = Math.min(1400, 700 + Math.abs(dist) * 0.35);
-  const t0 = performance.now();
-  glide = { y };
-  const step = (now) => {
-    if (!glide || glide.y !== y) return;
-    const x = Math.min(1, (now - t0) / dur);
-    const e = x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;   // плавно тронулся — плавно встал
-    scrollTo(0, from + dist * e);
-    if (x < 1) requestAnimationFrame(step);
-    else glide = null, (lastWheel = performance.now());
-  };
-  requestAnimationFrame(step);
+  // родная плавная прокрутка браузера идёт в своём потоке и не тормозит вместе с тяжёлым кадром 3D
+  scrollTo({ top: y, behavior: calm ? 'auto' : 'smooth' });
+  glide = { y, until: performance.now() + 1600 };
 }
+addEventListener('scroll', () => {
+  if (glide && (Math.abs(scrollY - glide.y) < 2 || performance.now() > glide.until)) glide = null, (lastWheel = performance.now());
+}, { passive: true });
 function current() {
   const T = tops();
   let i = 0;
@@ -392,6 +384,7 @@ async function warm() {
       world.clock.elapsedTime += 1 / 30;
       world.tick(1 / 30, world.clock.elapsedTime);
     }
+    world.renderer.shadowMap.needsUpdate = true;
     world.composer.render();
     if (bar) bar.style.transform = `scaleX(${(k + 1) / steps.length})`;
     if (note) note.textContent = 'Загрузка мира · ' + Math.round(((k + 1) / steps.length) * 100) + '%';

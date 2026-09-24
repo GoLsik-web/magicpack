@@ -159,7 +159,12 @@ export class Horde {
 
   release(mob) {
     if (!mob.poolKey) return;
-    mob.root.children.filter((c) => c.isSprite).forEach((c) => mob.root.remove(c));
+    mob.root.removeFromParent();
+    mob.root.children.filter((c) => c.isSprite).forEach((c) => {
+      mob.root.remove(c);
+      c.material.map?.dispose();
+      c.material.dispose();
+    });
     mob.root.rotation.set(0, 0, 0);
     mob.root.visible = true;
     mob.state = 'idle';
@@ -173,9 +178,31 @@ export class Horde {
     this.pool.get(mob.poolKey).push(mob);
   }
 
+  /** Освободить видеопамять ушедшей сценки: буферы, свои материалы, текстуры подписей (общие не трогаем). */
+  dispose(root) {
+    root.traverse((o) => {
+      if (o.isInstancedMesh) o.dispose();
+      if (o.geometry && o.geometry !== this.w._box && !o.isSkinnedMesh) o.geometry.dispose();
+      if (o.isSkinnedMesh) {
+        o.geometry.dispose();
+        o.skeleton?.dispose();                             // текстура матриц костей — у каждого скелета своя
+      }
+      for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
+        if (m.userData && m.userData.shared) continue;
+        if (m.map && m.map.isCanvasTexture) m.map.dispose();
+        m.dispose();
+      }
+    });
+  }
+
   clear() {
     for (const a of this.agents || []) this.release(a.mob);
-    for (const r of this.rings || []) this.w.scene.remove(r.m);
+    for (const r of this.rings || []) {
+      this.w.scene.remove(r.m);
+      r.m.geometry.dispose();
+      r.m.material.dispose();
+    }
+    if (this.group) this.dispose(this.group);
     this.w.scene.remove(this.group);
     this.group = new THREE.Group();
     this.w.scene.add(this.group);
@@ -346,7 +373,11 @@ export class Horde {
   }
 
   tag(a, text, color, h = 2.6) {
-    if (a.label) a.mob.root.remove(a.label);
+    if (a.label) {
+      a.mob.root.remove(a.label);
+      a.label.material.map?.dispose();
+      a.label.material.dispose();
+    }
     a.label = label(text, color);
     a.label.position.set(0, h, 0);
     a.mob.root.add(a.label);
@@ -696,6 +727,8 @@ export class Horde {
       f.pts.material.opacity = Math.max(0, Math.min(1, f.life * 1.5));
       if (f.life <= 0) {
         this.w.scene.remove(f.pts);
+        f.pts.geometry.dispose();
+        f.pts.material.dispose();
         this.fxList.splice(i, 1);
       }
     }
@@ -706,6 +739,8 @@ export class Horde {
       r.m.material.opacity = Math.max(0, 1 - r.r / r.max) * 0.8;
       if (r.r > r.max) {
         this.w.scene.remove(r.m);
+        r.m.geometry.dispose();
+        r.m.material.dispose();
         this.rings.splice(i, 1);
       }
     }
