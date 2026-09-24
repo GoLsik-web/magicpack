@@ -149,7 +149,9 @@ const SHOTS = {
 let shot = SHOTS.hero;
 const camPos = SHOTS.hero.pos.clone(), camLook = SHOTS.hero.look.clone();
 const sections = [...document.querySelectorAll('section[data-shot]')];
-const tops = () => sections.map((el) => el.offsetTop);
+let topsCache = null;
+const tops = () => (topsCache ||= sections.map((el) => el.offsetTop));
+addEventListener('resize', () => (topsCache = null));
 const ease = (x) => x * x * (3 - 2 * x);
 
 /**
@@ -357,7 +359,6 @@ document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('clic
   setTimeout(() => (b.textContent = was), 1400);
 }));
 
-world.run();
 window.__mp = { world, horde, town, setTier, setStage,          // для отладки в консоли
   go(name) {
     const el = sections.find((x) => x.dataset.shot === name);
@@ -368,4 +369,46 @@ window.__mp = { world, horde, town, setTier, setStage,          // для отл
     camLook.copy(wantLook);
     enter(name);
   } };
-document.body.classList.add('ready');
+
+/**
+ * Прогрев: браузер компилирует шейдер при первом показе предмета — на Windows (через DirectX) это
+ * доли секунды на каждую новую сцену, и страница «подвисает» при скролле даже на мощном ПК.
+ * Поэтому до показа сайта один раз проходим все сцены, ступени орды и уровни поселения и рисуем
+ * их за экраном загрузки: всё компилируется заранее, дальше рывков нет.
+ */
+async function warm() {
+  const bar = document.getElementById('warmbar'), note = document.getElementById('warmnote');
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+  const idle = () => new Promise((r) => setTimeout(r, 0));
+  const steps = [];
+  for (const s of ['hero', 'world', 'join', 'patron', 'quiet']) steps.push(() => __mp.go(s));
+  for (let i = 0; i < 8; i++) steps.push(() => { __mp.go('horde'); setTier(i); });
+  for (let i = 0; i < STAGES.length; i++) steps.push(() => { __mp.go('town'); setStage(i); });
+  const cam = world.camera;
+  world.warming = true;
+  for (let k = 0; k < steps.length; k++) {
+    steps[k]();
+    for (let n = 0; n < 3; n++) {
+      world.clock.elapsedTime += 1 / 30;
+      world.tick(1 / 30, world.clock.elapsedTime);
+    }
+    world.composer.render();
+    if (bar) bar.style.transform = `scaleX(${(k + 1) / steps.length})`;
+    if (note) note.textContent = 'Загрузка мира · ' + Math.round(((k + 1) / steps.length) * 100) + '%';
+    await (document.hidden ? idle() : frame());
+  }
+  await world.cacheEnv();                                 // отражения неба для всех настроений — заранее
+  // обратно: наверх, орда и поселение — как при первом заходе
+  horde.clear();
+  horde.tier = -1;
+  setStage(0);
+  __mp.go('hero');
+  world.snapLook('night');
+  cam.updateProjectionMatrix();
+  world.warming = false;
+}
+
+warm().then(() => {
+  world.run();
+  document.body.classList.add('ready');
+});

@@ -149,7 +149,32 @@ export class Horde {
     return V(this.c.x + dx, this.y(this.c.x + dx, this.c.z + dz) + dy, this.c.z + dz);
   }
 
+  /** Модели мобов не собираются заново при каждом перезапуске сценки — берутся из пула. */
+  take(key, make) {
+    const list = (this.pool ||= new Map()).get(key);
+    const mob = list && list.length ? list.pop() : make();
+    mob.poolKey = key;
+    return mob;
+  }
+
+  release(mob) {
+    if (!mob.poolKey) return;
+    mob.root.children.filter((c) => c.isSprite).forEach((c) => mob.root.remove(c));
+    mob.root.rotation.set(0, 0, 0);
+    mob.root.visible = true;
+    mob.state = 'idle';
+    mob.action = null;
+    mob.deadT = 0;
+    mob.speed = 0;
+    mob.lookTarget = null;
+    if (mob.tint) mob.tint = 0.001;
+    if (mob.anger !== undefined) mob.anger = 0;
+    if (!this.pool.has(mob.poolKey)) this.pool.set(mob.poolKey, []);
+    this.pool.get(mob.poolKey).push(mob);
+  }
+
   clear() {
+    for (const a of this.agents || []) this.release(a.mob);
     for (const r of this.rings || []) this.w.scene.remove(r.m);
     this.w.scene.remove(this.group);
     this.group = new THREE.Group();
@@ -177,20 +202,20 @@ export class Horde {
 
   walker(x, z, i, hp = 2) {
     const kinds = ['walker', 'walker_b', 'walker_v', 'walker_c'];
-    const a = this.add(new Humanoid(kinds[i % 4], 'walker', i + 3), x, z, hp, this.walkers);
+    const a = this.add(this.take('w' + (i % 12), () => new Humanoid(kinds[i % 4], 'walker', i + 3)), x, z, hp, this.walkers);
     a.mob.root.rotation.y = Math.PI;
     a.speedMul = 0.85 + hash(i, 3) * 0.3;
     return a;
   }
 
   survivor(x, z, tex = 'survivor', item = 'sword') {
-    const a = this.add(new Humanoid(tex, 'survivor', 99 + x, item), x, z, 999, this.survivors);
+    const a = this.add(this.take('s' + tex + item, () => new Humanoid(tex, 'survivor', 99 + x, item)), x, z, 999, this.survivors);
     a.mob.root.rotation.y = Math.PI;
     return a;
   }
 
   wolf(x, z, i) {
-    const a = this.add(new Wolf(i % 2 ? 'wolf_b' : 'wolf', i), x, z, 2, this.wolves);
+    const a = this.add(this.take('f' + (i % 2), () => new Wolf(i % 2 ? 'wolf_b' : 'wolf', i)), x, z, 2, this.wolves);
     a.mob.root.rotation.y = Math.PI;
     return a;
   }

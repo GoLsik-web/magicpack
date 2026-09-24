@@ -28,6 +28,11 @@ body {
   transition: opacity 1.4s ease;
 }
 body.ready #scene { opacity: 1; }
+.warm { position: fixed; left: 50%; bottom: 44px; transform: translateX(-50%); z-index: 5; display: grid; gap: 8px; justify-items: center;
+  font: 600 12px "JetBrains Mono", monospace; letter-spacing: .08em; color: var(--dim); transition: opacity .8s ease; pointer-events: none; }
+.warmline { width: 180px; height: 2px; background: var(--line); overflow: hidden; border-radius: 2px; }
+.warmline i { display: block; height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .2s ease; }
+body.ready .warm { opacity: 0; }
 .veil {
   position: fixed;
   inset: 0;

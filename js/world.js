@@ -1135,6 +1135,43 @@ export class World {
     this.lookName = name;
     this.goal = this.lookState(LOOKS[name]);
     this.envDirty = 1;
+    this.envT = 0;
+  }
+
+  /** Отражение неба для настроения: считается один раз по цветам этого настроения и хранится. */
+  envFor(name) {
+    this.envCache ||= {};
+    if (this.envCache[name]) return this.envCache[name];
+    const u = this.skyUni, L = this.lookState(LOOKS[name]);
+    const keep = { z: u.zenith.value.clone(), h: u.horizon.value.clone(), g: u.glow.value.clone(), d: u.dir.value.clone() };
+    u.zenith.value.copy(L.zenith);
+    u.horizon.value.copy(L.horizon);
+    u.glow.value.copy(L.glow);
+    u.dir.value.copy(L.moonDir);
+    const rt = this.pmrem.fromScene(this.envScene, 0.02);
+    u.zenith.value.copy(keep.z);
+    u.horizon.value.copy(keep.h);
+    u.glow.value.copy(keep.g);
+    u.dir.value.copy(keep.d);
+    return (this.envCache[name] = rt.texture);
+  }
+
+  async cacheEnv() {
+    for (const name of Object.keys(LOOKS)) {
+      this.envFor(name);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    this.scene.environment = this.envFor(this.lookName);
+  }
+
+  /** Настроение сразу, без перетекания (после прогрева). */
+  snapLook(name) {
+    this.lookName = name;
+    this.cur = this.lookState(LOOKS[name]);
+    this.goal = this.lookState(LOOKS[name]);
+    this.envDirty = 0;
+    this.blend(0);
+    this.scene.environment = this.envFor(name);
   }
 
   /** Совместимость со старым API: 0 — ночь, 1 — кровавая луна. */
@@ -1173,14 +1210,11 @@ export class World {
     this.hazeM.color.copy(c.horizon).multiplyScalar(0.62);
     this.flyUni.amount.value = Math.max(0, 1 - c.rain * 2) * (1 - c.embers);
     this.emberMat.opacity = c.embers * 0.9;
-    // отражение неба в воде: пересчёт, пока настроение перетекает (раз в полсекунды)
+    // отражение неба: готовое на каждое настроение (считается один раз), меняется на середине перехода
     this.envT = (this.envT || 0) + dt;
-    if ((this.envDirty || !this.scene.environment) && this.envT > 0.5) {
-      this.envT = 0;
-      if (this.env) this.env.dispose();
-      this.env = this.pmrem.fromScene(this.envScene, 0.02);
-      this.scene.environment = this.env.texture;
-      if (this.envDirty && ++this.envDirty > 8) this.envDirty = 0;
+    if (this.envDirty && this.envT > 0.8) {
+      this.envDirty = 0;
+      this.scene.environment = this.envFor(this.lookName);
     }
   }
 
@@ -1267,12 +1301,12 @@ export class World {
 
   /** Разрешение подстраивается: не успеваем 50+ кадров — чуть меньше пикселей, успеваем с запасом — обратно. */
   adapt(dt) {
-    if (document.hidden) return;
+    if (document.hidden || this.warming) return;
     this.ft = (this.ft ?? 1 / 60) * 0.95 + dt * 0.05;
     this.adaptT = (this.adaptT || 0) + dt;
     if (this.adaptT < 1.5) return;
     let r = this.ratio;
-    const slow = this.ft > 1 / 48, fast = this.ft < 1 / 75;
+    const slow = this.ft > 1 / 45, fast = this.ft < 1 / 90 && this.adaptT > 10;
     const floor = Math.min(this.maxRatio, Math.max(0.45, this.pixels(1.0e6)));
     if (slow && r > floor + 0.01) r = Math.max(floor, r * 0.85);
     else if (slow && this.level < 3) this.simplify(++this.level);
