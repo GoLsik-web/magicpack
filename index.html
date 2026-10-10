@@ -2,158 +2,153 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Magic Pack</title>
-<meta name="description" content="Русский сервер выживания с магией на Minecraft 1.21.1. Мёртвые поумнели, выжившие держатся за стенами, поселения растут у тебя на глазах.">
+<meta name="description" content="Мрачный сервер выживания с магией на Minecraft 1.21.1. Мёртвые учатся, поселения растут на глазах, свет очага — единственная защита от ночи.">
 <meta property="og:title" content="Magic Pack — сервер выживания 1.21.1">
-<meta property="og:description" content="Мёртвые поумнели. Живые держатся. Орда учится вместе с тобой.">
+<meta property="og:description" content="Мёртвые поумнели. Живые держатся за стенами.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://golsik-web.github.io/magicpack/">
-<meta property="og:image" content="https://golsik-web.github.io/magicpack/og.png">
+<meta property="og:image" content="https://golsik-web.github.io/magicpack/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0a0910">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230b0a12'/><path d='M9 23V9h3l4 7 4-7h3v14h-3v-8l-4 7-4-7v8z' fill='%23b27cff'/></svg>">
+<meta name="theme-color" content="#0b0c0d">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230b0c0d'/><path d='M16 4v24M9 11l7 7 7-7' stroke='%23d9a35b' stroke-width='3' fill='none'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/site.css?v=7">
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="v/statue.jpg">
+<link rel="stylesheet" href="css/site.css?v=20">
 </head>
-<body data-shot="hero">
-<canvas id="scene" aria-hidden="true"></canvas>
-<div class="veil" aria-hidden="true"></div>
-<div class="warm" aria-hidden="true"><div class="warmline"><i id="warmbar"></i></div><span id="warmnote">Загрузка мира</span></div>
+<body>
+<!-- Фон — настоящие кадры из игры (Minecraft с шейдерами), отрендеренные заранее: страница ничего не считает сама. -->
+<div class="stage" aria-hidden="true">
+  <video class="layer" muted playsinline preload="none"></video>
+  <video class="layer" muted playsinline preload="none"></video>
+  <div class="shade"></div>
+  <div class="grain"></div>
+</div>
+<div class="bars" aria-hidden="true"><i></i><i></i></div>
 
-<nav class="bar">
-  <a class="brand" href="#hero">MAGIC PACK</a>
-  <div class="links">
+<header class="top">
+  <a class="brand" href="#hero">MAGIC&nbsp;PACK</a>
+  <nav class="links">
     <a href="#orda">Орда</a>
     <a href="#posel">Поселения</a>
-    <a href="#start">Как зайти</a>
+    <a href="#start">Как играть</a>
     <a href="#donat">Покровитель</a>
-  </div>
-  <button class="ip" data-copy="zaluplay.gomc.fun">zaluplay.gomc.fun</button>
-</nav>
+  </nav>
+  <a class="btn tiny" href="#start">Играть</a>
+</header>
+
+<nav class="pager" aria-label="Разделы"></nav>
 
 <main>
-  <!-- ================================================================ шапка -->
-  <section id="hero" data-shot="hero" class="hero">
-    <div class="card hero-card">
-      <p class="kicker">Minecraft 1.21.1 · NeoForge · русский сервер</p>
-      <h1>Мёртвые<br>поумнели.</h1>
-      <p class="lead">Чем ты сильнее — тем умнее те, кто приходит за тобой в темноте.</p>
-      <div class="cta">
-        <a class="btn main" href="#start">Войти в мир</a>
-        <a class="btn" href="#orda">Смотреть орду</a>
+  <section id="hero" data-clip="statue" data-name="Начало" class="hero">
+    <div class="copy">
+      <p class="kicker reveal">Minecraft 1.21.1 · сервер выживания с магией</p>
+      <h1 class="reveal">Мёртвые<br><em>поумнели.</em></h1>
+      <p class="lead reveal">Тихий край сёл и древних рун, где свет очага — единственная защита от ночи.</p>
+      <div class="cta reveal">
+        <a class="btn main" href="#start">Начать играть</a>
+        <a class="btn ghost" href="#mir">Что здесь</a>
       </div>
     </div>
-    <div class="scroll" aria-hidden="true">листай</div>
+    <a class="down" href="#mir" aria-label="Дальше"><span></span></a>
   </section>
 
-  <!-- ================================================================ мир -->
-  <section id="mir" data-shot="world" class="split">
-    <div class="card">
-      <p class="num">01</p>
-      <h2>Годы после.</h2>
+  <section id="mir" data-clip="wall" data-name="Мир">
+    <div class="copy">
+      <p class="chap reveal">Глава I</p>
+      <h2 class="reveal">Годы после.</h2>
       <ul class="beats">
-        <li><b>Города пусты.</b> Выжившие живут за стенами и считают дни до лунной ночи.</li>
-        <li><b>Всё связано.</b> Твоя сила, поведение мёртвых, жизнь поселений и цена вещей — один узел.</li>
-        <li><b>Две школы магии.</b> Боевая Iron's Spellbooks или созидательная Ars Nouveau — сначала попробуй обе.</li>
-        <li><b>Жетоны выживших.</b> Лечение, еда, починка, мана, заказы гильдии. Руда стоит столько, сколько её реально добывают.</li>
+        <li class="reveal"><b>Города пусты.</b> Выжившие живут за стенами и считают дни до лунной ночи.</li>
+        <li class="reveal"><b>Всё связано.</b> Твоя сила, поведение мёртвых, жизнь поселений и цена вещей — один узел.</li>
+        <li class="reveal"><b>Две школы магии.</b> Боевая Iron's Spellbooks или созидательная Ars Nouveau.</li>
+        <li class="reveal"><b>Жетоны выживших.</b> Лечение, еда, починка, мана, заказы гильдии.</li>
+        <li class="reveal"><b>Жажда и климат.</b> Вода из реки грязная, жара и холод бьют по-настоящему.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ================================================================ орда -->
-  <section id="orda" data-shot="horde" class="stage">
-    <div class="card float">
-      <p class="num">02</p>
-      <h2>Орда, которая учится</h2>
-      <p class="sub">Жми ступень — сцена позади покажет, как они будут себя вести.</p>
-      <div class="ticks" id="ticks" role="tablist"></div>
-      <div class="mindbody" id="mindbody"></div>
-      <p class="hint">Двигай мышью — они смотрят на тебя. На T1+ кликни по земле.</p>
+  <section id="orda" data-clip="forest" data-name="Орда">
+    <div class="copy wide">
+      <p class="chap reveal">Глава II</p>
+      <h2 class="reveal">Орда, которая учится</h2>
+      <p class="sub reveal">Чем ты сильнее — тем умнее те, кто приходит за тобой в темноте. Восемь ступеней:</p>
+      <div class="tiers reveal" role="tablist" id="tiers"></div>
+      <div class="tierbody" id="tierbody" aria-live="polite"></div>
     </div>
   </section>
 
-  <!-- ================================================================ поселения -->
-  <section id="posel" data-shot="town" class="stage">
-    <div class="card float">
-      <p class="num">03</p>
-      <h2>Поселение растёт у тебя на глазах</h2>
-      <p class="sub">Берёшь его под опеку, зовёшь прораба — и смотришь, как жители строят.</p>
-      <div class="ticks wide" id="stages"></div>
-      <p class="mindbody plain" id="stagebody"></p>
+  <section id="noch" data-clip="wallnight" data-name="Ночь" class="quote">
+    <div class="copy center">
+      <p class="big reveal">Днём строишь.<br>Ночью — держишь стену.</p>
+    </div>
+  </section>
+
+  <section id="posel" data-clip="camp" data-name="Поселения">
+    <div class="copy wide">
+      <p class="chap reveal">Глава III</p>
+      <h2 class="reveal">Поселение растёт у тебя на глазах</h2>
+      <p class="sub reveal">Берёшь его под опеку, зовёшь прораба — и смотришь, как жители строят.</p>
+      <ol class="stages reveal" id="stages"></ol>
       <ul class="facts">
-        <li><b>Прораб</b> сам подходит и спрашивает: защиту или развитость?</li>
-        <li><b>Строители</b> кладут новую стену снаружи и разбирают старую.</li>
-        <li><b>Маги</b> обходят стену и накладывают руны.</li>
-        <li><b>У каждого работника свой дом</b> — лазарет, кузня, лавка, башня мага.</li>
+        <li class="reveal"><b>Прораб</b> сам подходит и спрашивает: защиту или развитость?</li>
+        <li class="reveal"><b>Строители</b> кладут новую стену снаружи и разбирают старую.</li>
+        <li class="reveal"><b>Маги</b> обходят стену и накладывают руны.</li>
+        <li class="reveal"><b>У каждого работника свой дом</b> — лазарет, кузня, лавка, башня мага.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ================================================================ как зайти -->
-  <section id="start" data-shot="join" class="split right">
-    <div class="card">
-      <p class="num">04</p>
-      <h2>Как зайти</h2>
+  <section id="start" data-clip="fog" data-name="Как играть">
+    <div class="copy wide">
+      <p class="chap reveal">Глава IV</p>
+      <h2 class="reveal">Как начать играть</h2>
+      <p class="sub reveal">Ничего ставить вручную не нужно — лаунчер скачает сборку и всё настроит сам.</p>
       <ol class="steps">
-        <li><b>Java 21.</b> Бери Temurin 21, при установке отметь «Add to PATH».
-          <a class="btn small" href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Скачать Java 21</a></li>
-        <li><b>Сборка.</b> Запусти официальный лаунчер один раз и закрой. Распакуй архив и запусти «Установить.bat» —
-          он поставит NeoForge, скопирует сборку и добавит профиль Magic Pack.
-          <a class="btn small" href="https://github.com/GoLsik-web/magicpack/releases/latest" target="_blank" rel="noopener">Скачать сборку</a></li>
-        <li><b>Сервер.</b> Профиль Magic Pack → «Играть» → «Сетевая игра» → «Добавить сервер».
-          <span class="addr"><button class="copy" data-copy="zaluplay.gomc.fun">zaluplay.gomc.fun</button>
-          <button class="copy dim" data-copy="213.152.43.89:25589">213.152.43.89:25589</button></span></li>
+        <li class="reveal"><span class="n">1</span><div><b>Скачай лаунчер</b>Windows, один файл.
+          <a class="btn main small" href="https://launcher.windlands.su/api/v1/file/win-x64-Windlands.exe" rel="noopener">Скачать лаунчер</a></div></li>
+        <li class="reveal"><span class="n">2</span><div><b>Выбери сборку ZaluPlay</b>Войди в лаунчер, выбери ZaluPlay и нажми «Играть». Первый запуск дольше — сборка скачивается целиком.</div></li>
+        <li class="reveal"><span class="n">3</span><div><b>Нажми «Подключиться»</b>В меню игры одна кнопка — она сразу ведёт на сервер.</div></li>
       </ol>
-      <p class="note"><b>Тормозит?</b> F7 выключает шейдеры. Дальность 8–10, частицы «Меньше». На 8 ГБ ОЗУ ставь <code>-Xmx4G</code>.
-        Другой лаунчер (TLauncher, Prism): поставь NeoForge 21.1.250 и скопируй папку «minecraft» из архива в профиль.</p>
+      <p class="note reveal">Графику сборка подбирает сама под твою видеокарту. Поменять — «Настройки» в меню игры.</p>
     </div>
   </section>
 
-  <!-- ================================================================ покровитель -->
-  <section id="donat" data-shot="patron" class="split">
-    <div class="card">
-      <p class="num">05</p>
-      <h2>Покровитель</h2>
-      <p class="sub">Сервер держится на тех, кто в него верит. Оставь след в мире.</p>
+  <section id="donat" data-clip="bones" data-name="Покровитель">
+    <div class="copy wide">
+      <p class="chap reveal">Глава V</p>
+      <h2 class="reveal">Покровитель</h2>
+      <p class="sub reveal">Сервер держится на тех, кто в него верит. Оставь след в мире.</p>
       <ul class="facts two">
-        <li><b>Цветное имя</b> в чате и метка в списке игроков</li>
-        <li><b>Титул</b> на выбор из титулов гильдии</li>
-        <li><b>Приоритетный вход</b>, когда сервер забит</li>
-        <li><b>Знамя с твоим именем</b> на стене твоего поселения</li>
-        <li><b>Имя на стеле</b> в столице — навсегда</li>
-        <li><b>Закрытый канал</b> в Discord и голос в опросах</li>
+        <li class="reveal"><b>Цветное имя</b> в чате и метка в списке игроков</li>
+        <li class="reveal"><b>Титул</b> на выбор из титулов гильдии</li>
+        <li class="reveal"><b>Приоритетный вход</b>, когда сервер забит</li>
+        <li class="reveal"><b>Знамя с твоим именем</b> на стене твоего поселения</li>
+        <li class="reveal"><b>Имя на стеле</b> в столице — навсегда</li>
+        <li class="reveal"><b>Закрытый канал</b> в Discord и голос в опросах</li>
       </ul>
-      <a class="btn main" id="donate" href="https://www.donationalerts.com/r/rain09k" target="_blank" rel="noopener">Поддержать через DonationAlerts</a>
-      <p class="note">В сообщении к переводу укажи ник в игре. Роль выдаём вручную, обычно в тот же день — напиши в Discord.</p>
+      <a class="btn main reveal" id="donate" href="https://www.donationalerts.com/r/rain09k" target="_blank" rel="noopener">Поддержать через DonationAlerts</a>
+      <p class="note reveal">В сообщении к переводу укажи ник в игре. Роль выдаём вручную, обычно в тот же день — напиши в Discord.</p>
     </div>
   </section>
 
-  <!-- ================================================================ связь -->
-  <section id="svyaz" data-shot="quiet" class="end">
-    <div class="card center">
-      <h2>До встречи за стеной.</h2>
-      <div class="social">
-        <a class="btn" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">Discord</a>
-        <a class="btn" href="https://www.twitch.tv/rain09k" target="_blank" rel="noopener">Twitch</a>
-        <a class="btn" href="https://t.me/mouds9" target="_blank" rel="noopener">Telegram</a>
+  <section id="svyaz" data-clip="statue" data-name="Связь" class="end">
+    <div class="copy center">
+      <h2 class="reveal">До встречи за стеной.</h2>
+      <div class="social reveal">
+        <a class="btn ghost" href="https://discord.gg/gwExB8STq" target="_blank" rel="noopener">Discord</a>
+        <a class="btn ghost" href="https://www.twitch.tv/rain09k" target="_blank" rel="noopener">Twitch</a>
+        <a class="btn ghost" href="https://t.me/mouds9" target="_blank" rel="noopener">Telegram</a>
       </div>
-      <p class="foot">Magic Pack · Minecraft 1.21.1 · NeoForge 21.1.250 · вся графика на странице — сцена в реальном времени</p>
+      <p class="foot">Magic Pack · Minecraft 1.21.1 · NeoForge · все кадры на странице сняты в игре</p>
     </div>
   </section>
 </main>
 
-<script type="module" src="js/pager.js?v=7"></script>
-<script type="module" src="js/main.js?v=8"></script>
+<script src="js/site.js?v=20" defer></script>
 </body>
 </html>
